@@ -35,9 +35,8 @@ html, body {
   background-image: url("public/glacier.jpg");
   background-size: cover;
   background-position: center;
-  filter: blur(14px) brightness(0.5) saturate(1.2);
+  filter: blur(14px) brightness(0.6);
   transform: scale(0.5);
-  z-index: -1;
 }
 
 .grid {

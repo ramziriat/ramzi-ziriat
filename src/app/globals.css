@@ -32,11 +32,11 @@ html, body {
 .bg {
   position: fixed;
   inset: 0;
-  background-image: "/glacier.PNG";
+  background-image: url("/glacier.jpg");
   background-size: cover;
   background-position: center;
   filter: blur(14px) brightness(0.6);
-  transform: scale(1.1);
+  transform: scale(1.5);
 }
 
 .grid {

@@ -21,7 +21,7 @@ export default function Home() {
 
   /* ---------------- BOOT SEQUENCE (RESTORED EXACT STYLE) ---------------- */
   useEffect(() => {
-    const t = setTimeout(() => setBoot(false), 3000);
+    const t = setTimeout(() => setBoot(false), 2700);
     return () => clearTimeout(t);
   }, []);
 

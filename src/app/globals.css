@@ -36,7 +36,7 @@ html, body {
   background-size: cover;
   background-position: center;
   filter: blur(14px) brightness(0.6);
-  transform: scale(0.5);
+  transform: scale(1.0);
 }
 
 .grid {

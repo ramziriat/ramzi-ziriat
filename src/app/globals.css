@@ -35,7 +35,7 @@ html, body {
   background-image: url("public/glacier.jpg");
   background-size: cover;
   background-position: center;
-  filter: blur(14px) brightness(0.6);
+  filter: blur(15px) brightness(0.5) saturate(1.2);
   transform: scale(1.0);
 }
 

@@ -199,8 +199,6 @@ export default function Home() {
     </main>
   );
 }
-
-/* ---------------- NEURAL COMPONENT ---------------- */
 function NeuralNetwork() {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -211,54 +209,87 @@ function NeuralNetwork() {
     let w = (canvas.width = window.innerWidth);
     let h = (canvas.height = window.innerHeight);
 
+    const center = { x: w / 2, y: h / 2 };
     const mouse = { x: w / 2, y: h / 2 };
+
+    const totalNodes = 25;
+
+    const activeLabels = [
+      "Aerospace",
+      "Astrophysics",
+      "Cosmology",
+      "Philosophy",
+      "Pilot",
+    ];
 
     const nodes: any[] = [];
 
-    const allLabels = [
-      ...activeNodes.map((l) => ({ label: l, active: true })),
-      ...inactiveNodes.map(() => ({ label: "", active: false })),
-    ];
+    /* ---------------- ORBITAL RANDOM STRUCTURE ---------------- */
+    for (let i = 0; i < totalNodes; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 120 + Math.random() * 90; // NOT PERFECT CIRCLE
 
-    for (let i = 0; i < allLabels.length; i++) {
+      const isActive = i < 5;
+
       nodes.push({
-        x: w / 2 + Math.cos(i) * 200,
-        y: h / 2 + Math.sin(i) * 200,
+        angle,
+        radius,
+        baseRadius: radius,
+        x: center.x + Math.cos(angle) * radius,
+        y: center.y + Math.sin(angle) * radius,
         vx: 0,
         vy: 0,
-        label: allLabels[i].label,
-        active: allLabels[i].active,
-        baseX: w / 2,
-        baseY: h / 2,
+        active: isActive,
+        label: isActive ? activeLabels[i] : "",
       });
     }
 
     const draw = () => {
       ctx.clearRect(0, 0, w, h);
 
+      /* ---------------- UPDATE CENTER (VERY STABLE) ---------------- */
       for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i];
 
-        const dx = mouse.x - n.x;
-        const dy = mouse.y - n.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const dxm = mouse.x - n.x;
+        const dym = mouse.y - n.y;
 
-        if (dist < 180) {
-          n.vx += dx * 0.0008;
-          n.vy += dy * 0.0008;
-        }
+        const distMouse = Math.sqrt(dxm * dxm + dym * dym);
 
-        n.vx += (n.baseX - n.x) * 0.001;
-        n.vy += (n.baseY - n.y) * 0.001;
+        /* ---------------- VERY SOFT DIRECTIONAL INFLUENCE ---------------- */
+        const dirX = dxm / (distMouse || 1);
+        const dirY = dym / (distMouse || 1);
+
+        // only if close enough
+        const influence = distMouse < 250 ? (1 - distMouse / 250) : 0;
+
+        // IMPORTANT: asymmetry based on position relative to center
+        const fromCenterX = (n.x - center.x) / w;
+
+        const sideFactor = Math.max(0.2, 1 - Math.abs(fromCenterX) * 2);
+
+        // movement is subtle, not destabilizing orbit
+        n.vx += dirX * influence * 0.25 * sideFactor;
+        n.vy += dirY * influence * 0.25 * sideFactor;
+
+        /* ---------------- ORBIT STABILITY ---------------- */
+        const ox = center.x + Math.cos(n.angle) * n.radius;
+        const oy = center.y + Math.sin(n.angle) * n.radius;
+
+        n.vx += (ox - n.x) * 0.01;
+        n.vy += (oy - n.y) * 0.01;
 
         n.vx *= 0.92;
         n.vy *= 0.92;
 
         n.x += n.vx;
         n.y += n.vy;
+
+        // slow orbital drift (organic motion)
+        n.angle += 0.0008;
       }
 
-      // links
+      /* ---------------- LINKS ---------------- */
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i];
@@ -268,8 +299,8 @@ function NeuralNetwork() {
           const dy = a.y - b.y;
           const d = Math.sqrt(dx * dx + dy * dy);
 
-          if (d < 140) {
-            ctx.strokeStyle = "rgba(76,201,240,0.08)";
+          if (d < 160) {
+            ctx.strokeStyle = "rgba(76,201,240,0.06)";
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
@@ -278,27 +309,31 @@ function NeuralNetwork() {
         }
       }
 
-      // nodes
+      /* ---------------- NODES ---------------- */
       for (const n of nodes) {
         const dx = mouse.x - n.x;
         const dy = mouse.y - n.y;
         const d = Math.sqrt(dx * dx + dy * dy);
 
-        const active = n.active;
+        const isNear = d < 120;
 
-        const size = active
-          ? d < 120
-            ? 10
-            : 6
-          : 3;
+        const baseSize = n.active ? 6 : 3;
+        const size = isNear ? baseSize * 1.6 : baseSize;
 
         ctx.beginPath();
-        ctx.fillStyle = active ? "#4cc9f0" : "rgba(255,255,255,0.2)";
+
+        if (n.active) {
+          ctx.fillStyle = "#4cc9f0";
+        } else {
+          ctx.fillStyle = "rgba(255,255,255,0.25)";
+        }
+
         ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
         ctx.fill();
 
-        if (active && d < 120) {
-          ctx.fillStyle = "white";
+        /* ---------------- TEXT ONLY ACTIVE ---------------- */
+        if (n.active && isNear) {
+          ctx.fillStyle = "rgba(255,255,255,0.9)";
           ctx.font = "12px system-ui";
           ctx.fillText(n.label, n.x + 10, n.y);
         }
@@ -315,5 +350,5 @@ function NeuralNetwork() {
     draw();
   }, []);
 
-  return <canvas ref={ref} className="neural" />;
+  return <canvas className="neural" ref={ref} />;
 }

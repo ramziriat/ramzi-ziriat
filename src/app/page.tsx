@@ -2,28 +2,30 @@
 
 import { useEffect, useRef, useState } from "react";
 
+/* ---------------- MISSION DATA ---------------- */
+const missions = [
+  { year: 2001, title: "Birth", desc: "System initialization", status: "DONE" },
+  { year: 2015, title: "Scientific curiosity", desc: "First structured cognition", status: "DONE" },
+  { year: 2023, title: "Aviation exploration", desc: "Flight systems trajectory", status: "DONE" },
+  { year: 2026, title: "Research phase", desc: "Astrophysics + Cosmology + Philosophy", status: "ACTIVE" },
+  { year: 2028, title: "Engineering + M2", desc: "Aerospace integration", status: "PLANNED" },
+  { year: 2035, title: "Exploration synthesis", desc: "Unified exploration doctrine", status: "FUTURE" },
+];
+
 /* ---------------- NEURAL NODES ---------------- */
 const activeNodes = [
-  { label: "Aerospace" },
-  { label: "Astrophysics" },
-  { label: "Cosmology" },
-  { label: "Philosophy" },
-  { label: "Pilot Training" },
+  "Aerospace",
+  "Astrophysics",
+  "Cosmology",
+  "Philosophy",
+  "Pilot training",
 ];
 
-const inactiveNodes = Array.from({ length: 20 }).map((_, i) => ({
-  id: i,
-}));
+const inactiveNodes = Array.from({ length: 20 }, (_, i) => `node-${i}`);
 
-/* ---------------- TIMELINE ---------------- */
-const missions = [
-  { year: 2001, title: "Birth", desc: "Initialization", status: "DONE" },
-  { year: 2015, title: "Scientific curiosity", desc: "Thinking system", status: "DONE" },
-  { year: 2023, title: "Aviation exploration", desc: "Flight trajectory", status: "DONE" },
-  { year: 2026, title: "Active Research", desc: "Multi-domain work", status: "ACTIVE" },
-  { year: 2028, title: "M2 + Engineering", desc: "Cosmos + Aero fusion", status: "PLANNED" },
-  { year: 2035, title: "Exploration synthesis", desc: "Unified model", status: "FUTURE" },
-];
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
 
 export default function Home() {
   const [page, setPage] = useState(0);
@@ -31,40 +33,38 @@ export default function Home() {
   const [boot, setBoot] = useState(true);
   const [utc, setUtc] = useState("");
 
-  /* ---------------- FLIGHT HOURS ANIMATION ---------------- */
+  /* ---------------- FLIGHT HOURS (SMOOTH EASING) ---------------- */
   const [flightHours, setFlightHours] = useState(0);
 
   useEffect(() => {
     const target = 42;
-    const duration = 2600;
     const start = performance.now();
 
-    const ease = (t: number) =>
-      t < 0.5
-        ? 4 * t * t * t
-        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const animate = (t: number) => {
+      const p = clamp((t - start) / 2500, 0, 1);
 
-    const animate = (now: number) => {
-      const p = Math.min((now - start) / duration, 1);
-      const eased = ease(p);
+      // ease: fast start, slow end
+      const eased = 1 - Math.pow(1 - p, 4);
+
       setFlightHours(Math.floor(eased * target));
+
       if (p < 1) requestAnimationFrame(animate);
     };
 
     requestAnimationFrame(animate);
   }, []);
 
-  /* ---------------- BOOT GLOW ---------------- */
+  /* ---------------- BOOT ---------------- */
   useEffect(() => {
     const t = setTimeout(() => setBoot(false), 3000);
     return () => clearTimeout(t);
   }, []);
 
-  /* ---------------- CLOCK ---------------- */
+  /* ---------------- UTC ---------------- */
   useEffect(() => {
-    const u = () => setUtc(new Date().toUTCString());
-    u();
-    const i = setInterval(u, 1000);
+    const update = () => setUtc(new Date().toUTCString());
+    update();
+    const i = setInterval(update, 1000);
     return () => clearInterval(i);
   }, []);
 
@@ -72,7 +72,7 @@ export default function Home() {
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       if (boot) return;
-      if (e.deltaY > 0) setPage((p) => Math.min(5, p + 1));
+      if (e.deltaY > 0) setPage((p) => Math.min(4, p + 1));
       else setPage((p) => Math.max(0, p - 1));
     };
 
@@ -80,21 +80,19 @@ export default function Home() {
     return () => window.removeEventListener("wheel", onWheel);
   }, [boot]);
 
-  /* ---------------- NEURAL STATE ---------------- */
-  const [mouse, setMouse] = useState({ x: 0, y: 0 });
-
+  /* ---------------- BOOT SCREEN ---------------- */
   if (boot) {
     return (
-      <div className="bootGlow">
-        <div className="bootText">INITIALIZING SYSTEM...</div>
+      <div className="boot">
+        <div className="bootTextGlow">
+          INITIALIZING MISSION SYSTEM...
+        </div>
       </div>
     );
   }
 
   return (
-    <main
-      onMouseMove={(e) => setMouse({ x: e.clientX, y: e.clientY })}
-    >
+    <main>
 
       {/* BACKGROUND */}
       <div className="bg" />
@@ -104,84 +102,38 @@ export default function Home() {
       {/* HUD */}
       <header className="hud">
         <div>STATUS: ONLINE</div>
-        <div>RAMZI ZIRIAT</div>
+        <div>RAMZI ZIRIAT // EXPLORATION SYSTEM</div>
         <div>{utc}</div>
-        <div>FLIGHT: {flightHours}h</div>
+        <div>FLIGHT HOURS: {flightHours}h</div>
       </header>
 
       {/* SIDEBAR */}
       <aside className="sidebar">
-        {["HOME", "MISSION", "TIMELINE", "LAB", "MAP", "CONTACT"].map(
-          (s, i) => (
-            <div
-              key={s}
-              className={`dot ${page === i ? "active" : ""}`}
-              onClick={() => setPage(i)}
-            />
-          )
-        )}
+        {["HOME", "VISION", "LAB", "MAP", "COLLAB"].map((s, i) => (
+          <div
+            key={s}
+            className={`dot ${page === i ? "active" : ""}`}
+            onClick={() => setPage(i)}
+          />
+        ))}
       </aside>
 
       {/* VIEWPORT */}
-      <div
-        className="viewport"
-        style={{ transform: `translateY(-${page * 100}vh)` }}
-      >
+      <div className="viewport" style={{ transform: `translateY(-${page * 100}vh)` }}>
 
-        {/* ---------------- HOME NEURAL NETWORK ---------------- */}
+        {/* ---------------- PAGE 1: NEURAL NETWORK ---------------- */}
         <section className="section">
-          <h1>EXPLORATION SYSTEM</h1>
+          <h1>RAMZI ZIRIAT</h1>
 
-          {/* ACTIVE NODES */}
-          {activeNodes.map((n, i) => (
-            <div
-              key={i}
-              className="nodeActive"
-              style={{
-                top: `${20 + i * 12}%`,
-                left: `${20 + i * 10}%`,
-                transform: `
-                  translate(
-                    ${mouse.x * 0.01}px,
-                    ${mouse.y * 0.01}px
-                  )
-                `,
-              }}
-            >
-              {n.label}
-            </div>
-          ))}
-
-          {/* INACTIVE NODES */}
-          {inactiveNodes.map((n, i) => (
-            <div
-              key={i}
-              className="nodeInactive"
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-              }}
-            />
-          ))}
-        </section>
-
-        {/* ---------------- CURRENT MISSION ---------------- */}
-        <section className="section split">
-          <div className="left">
-            <h2>CURRENT MISSION</h2>
-            <p>
-              Multi-domain astrophysics + cosmology + philosophy program.
-            </p>
-
-            <button className="cta">SEE PROJECTS</button>
+          <div className="bigMetric">
+            <h2>{flightHours}h</h2>
+            <p>FLIGHT EXPERIENCE</p>
           </div>
 
-          <div className="right">
-            <div className="imgMock" />
-          </div>
+          <NeuralNetwork />
         </section>
 
-        {/* ---------------- TIMELINE ---------------- */}
+        {/* ---------------- PAGE 2: TIMELINE ---------------- */}
         <section className="section">
           <h2>VISION TIMELINE</h2>
 
@@ -192,14 +144,12 @@ export default function Home() {
               <div
                 key={i}
                 className="node"
-                style={{
-                  left: `${(i / (missions.length - 1)) * 100}%`,
-                }}
+                style={{ left: `${(i / (missions.length - 1)) * 100}%` }}
                 onMouseEnter={() => setHover(i)}
                 onMouseLeave={() => setHover(null)}
               >
-                <div className={`dotNode ${m.status}`} />
-                <span>{m.year}</span>
+                <div className="dotNode" />
+                <span className="year">{m.year}</span>
 
                 {hover === i && (
                   <div className="tooltip">
@@ -212,34 +162,158 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ---------------- FLIGHT LAB ---------------- */}
+        {/* ---------------- PAGE 3: LAB ---------------- */}
         <section className="section">
           <h2>FLIGHT LAB</h2>
 
           <div className="labGrid">
-            <div className="panel">AERO</div>
-            <div className="panel">COSMO</div>
-            <div className="panel">PROPULSION</div>
-            <div className="panel">SIMULATION</div>
+            <div className="panel">Flight Model</div>
+            <div className="panel">Astro Module</div>
+            <div className="panel">Propulsion</div>
+            <div className="panel">Simulation</div>
           </div>
         </section>
 
-        {/* ---------------- MAP ---------------- */}
+        {/* ---------------- PAGE 4: MAP ---------------- */}
         <section className="section">
           <h2>EXPLORATION MAP</h2>
+
           <iframe
             className="map"
             src="https://www.openstreetmap.org/export/embed.html"
           />
         </section>
 
-        {/* ---------------- CONTACT ---------------- */}
+        {/* ---------------- PAGE 5: COLLAB ---------------- */}
         <section className="section">
           <h2>COLLABORATION</h2>
+
+          <p style={{ maxWidth: "700px", textAlign: "center" }}>
+            Research institutions, aerospace industry & scientific media partners.
+          </p>
+
           <button className="cta">CONTACT MISSION CONTROL</button>
         </section>
 
       </div>
     </main>
   );
+}
+
+/* ---------------- NEURAL COMPONENT ---------------- */
+function NeuralNetwork() {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current!;
+    const ctx = canvas.getContext("2d")!;
+
+    let w = (canvas.width = window.innerWidth);
+    let h = (canvas.height = window.innerHeight);
+
+    const mouse = { x: w / 2, y: h / 2 };
+
+    const nodes: any[] = [];
+
+    const allLabels = [
+      ...activeNodes.map((l) => ({ label: l, active: true })),
+      ...inactiveNodes.map(() => ({ label: "", active: false })),
+    ];
+
+    for (let i = 0; i < allLabels.length; i++) {
+      nodes.push({
+        x: w / 2 + Math.cos(i) * 200,
+        y: h / 2 + Math.sin(i) * 200,
+        vx: 0,
+        vy: 0,
+        label: allLabels[i].label,
+        active: allLabels[i].active,
+        baseX: w / 2,
+        baseY: h / 2,
+      });
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+
+        const dx = mouse.x - n.x;
+        const dy = mouse.y - n.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 180) {
+          n.vx += dx * 0.0008;
+          n.vy += dy * 0.0008;
+        }
+
+        n.vx += (n.baseX - n.x) * 0.001;
+        n.vy += (n.baseY - n.y) * 0.001;
+
+        n.vx *= 0.92;
+        n.vy *= 0.92;
+
+        n.x += n.vx;
+        n.y += n.vy;
+      }
+
+      // links
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i];
+          const b = nodes[j];
+
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+
+          if (d < 140) {
+            ctx.strokeStyle = "rgba(76,201,240,0.08)";
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // nodes
+      for (const n of nodes) {
+        const dx = mouse.x - n.x;
+        const dy = mouse.y - n.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+
+        const active = n.active;
+
+        const size = active
+          ? d < 120
+            ? 10
+            : 6
+          : 3;
+
+        ctx.beginPath();
+        ctx.fillStyle = active ? "#4cc9f0" : "rgba(255,255,255,0.2)";
+        ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (active && d < 120) {
+          ctx.fillStyle = "white";
+          ctx.font = "12px system-ui";
+          ctx.fillText(n.label, n.x + 10, n.y);
+        }
+      }
+
+      requestAnimationFrame(draw);
+    };
+
+    window.addEventListener("mousemove", (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    });
+
+    draw();
+  }, []);
+
+  return <canvas ref={ref} className="neural" />;
 }

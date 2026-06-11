@@ -7,33 +7,34 @@ html, body {
   font-family: system-ui;
 }
 
-/* BOOT */
-.bootGlow {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: black;
-}
-
-.bootText {
-  font-size: 14px;
-  letter-spacing: 0.4em;
-  animation: glow 3s ease-in-out infinite;
-}
-
-@keyframes glow {
-  0%,100% { opacity: 0.2; }
-  50% { opacity: 1; }
-}
-
 /* BACKGROUND */
 .bg {
   position: fixed;
   inset: 0;
+  background-image: url("public/glacier.jpg");
   background-size: cover;
+  background-position: center;
   filter: blur(14px) brightness(0.5);
+  transform: scale(1.1);
+}
+
+.grid {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+
+.glow {
+  position: fixed;
+  width: 700px;
+  height: 700px;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(76,201,240,0.2), transparent 60%);
 }
 
 /* HUD */
@@ -43,13 +44,15 @@ html, body {
   width: 100%;
   display: flex;
   justify-content: space-between;
-  padding: 10px 20px;
+  padding: 12px 20px;
   font-size: 12px;
+  letter-spacing: 0.15em;
+  z-index: 10;
 }
 
 /* VIEWPORT */
 .viewport {
-  transition: transform 1s cubic-bezier(0.77,0,0.175,1);
+  transition: transform 0.9s cubic-bezier(0.77,0,0.175,1);
 }
 
 /* SECTION */
@@ -61,37 +64,82 @@ html, body {
   align-items: center;
 }
 
-/* SPLIT */
+/* SPLIT SECTION */
 .split {
   flex-direction: row;
+  justify-content: space-between;
+  padding: 0 10%;
 }
 
-.left, .right {
+.left {
   width: 45%;
+}
+
+.right {
+  width: 45%;
+}
+
+.imgMock {
+  width: 100%;
+  height: 300px;
+  background: rgba(255,255,255,0.1);
+}
+
+/* TEXT */
+h1 { font-size: 60px; letter-spacing: 0.4em; }
+h2 { font-size: 40px; }
+
+/* BIG METRIC */
+.bigMetric {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.bigMetric h2 {
+  font-size: 80px;
+  margin: 0;
+  color: #4cc9f0;
+}
+
+/* CARDS */
+.cards {
+  display: flex;
+  gap: 20px;
+}
+
+.card {
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 15px;
+  width: 200px;
 }
 
 /* CTA */
 .cta {
+  margin-top: 20px;
   padding: 10px 20px;
-  border: 1px solid white;
   background: rgba(76,201,240,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
+  cursor: pointer;
 }
 
-/* NEURAL */
-.nodeActive {
-  position: absolute;
-  padding: 6px 12px;
-  border: 1px solid #4cc9f0;
-  border-radius: 20px;
-  transition: transform 0.3s ease;
+/* SIDEBAR */
+.sidebar {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-.nodeInactive {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: rgba(255,255,255,0.2);
+.dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
+  margin: 10px;
+  background: rgba(255,255,255,0.3);
+}
+
+.dot.active {
+  background: #4cc9f0;
 }
 
 /* TIMELINE */
@@ -102,6 +150,7 @@ html, body {
 
 .line {
   position: absolute;
+  top: 50%;
   width: 100%;
   height: 2px;
   background: rgba(255,255,255,0.2);
@@ -109,6 +158,24 @@ html, body {
 
 .node {
   position: absolute;
+  top: 40%;
+  transform: translateX(-50%);
+}
+
+.dotNode {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4cc9f0;
+}
+
+.tooltip {
+  position: absolute;
+  top: 30px;
+  left: -80px;
+  width: 200px;
+  background: rgba(0,0,0,0.7);
+  padding: 10px;
 }
 
 /* LAB */
@@ -119,7 +186,7 @@ html, body {
 }
 
 .panel {
-  border: 1px solid white;
+  border: 1px solid rgba(255,255,255,0.2);
   padding: 20px;
 }
 
@@ -127,4 +194,54 @@ html, body {
 .map {
   width: 70%;
   height: 400px;
+  border: none;
+}
+
+.boot {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: black;
+}
+
+.bootTextGlow {
+  font-size: 14px;
+  letter-spacing: 0.4em;
+  color: rgba(76,201,240,0.8);
+  animation: glowBoot 3s ease-in-out forwards;
+}
+
+@keyframes glowBoot {
+  0% { opacity: 0; filter: blur(10px); }
+  50% { opacity: 1; filter: blur(2px); }
+  100% { opacity: 0.8; filter: blur(0px); }
+}
+
+.neural {
+  width: 100%;
+  height: 35vh;
+  margin-top: 20px;
+}
+
+.split {
+  flex-direction: row;
+}
+
+.labGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.panel {
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 20px;
+  transition: 0.3s;
+}
+
+.panel:hover {
+  transform: scale(1.05);
+  border-color: #4cc9f0;
 }

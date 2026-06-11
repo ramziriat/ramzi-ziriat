@@ -266,7 +266,7 @@ function NeuralNetwork() {
         // IMPORTANT: asymmetry based on position relative to center
         const fromCenterX = (n.x - center.x) / w;
 
-        const sideFactor = 0.90;
+        const sideFactor = 0.99;
 
         // movement is subtle, not destabilizing orbit
         n.vx += dirX * influence * 0.25 * sideFactor;

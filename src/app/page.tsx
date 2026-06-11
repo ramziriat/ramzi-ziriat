@@ -1,91 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-/* ---------------- DATA ---------------- */
+/* ---------------- SYSTEM DATA ---------------- */
 const missions = [
-  { year: 2001, title: "System initialization", desc: "Birth of trajectory", status: "DONE" },
-
-  { year: 2023, title: "BIA aviation certification", desc: "First aeronautical validation", status: "DONE" },
-
-  { year: 2024, title: "Physics fundamentals", desc: "USTHB + Montpellier physics", status: "DONE" },
-
-  { year: 2025, title: "M1 Physics Paris Cité", desc: "Microlensing quasars / Fe Kα", status: "DONE" },
-
-  { year: 2025, title: "Neutron irradiation L2C", desc: "Material interaction studies", status: "DONE" },
-
-  {
-    year: 2026,
-    title: "Pulsar spectroscopy",
-    desc: "LPC2E Orléans - NenuFAR low frequency",
-    status: "ACTIVE"
-  },
-
-  {
-    year: 2026,
-    title: "M2 Astrophysics",
-    desc: "University of Montpellier",
-    status: "ACTIVE"
-  },
-
-  {
-    year: 2026,
-    title: "M2 Cosmology + Philosophy",
-    desc: "Sorbonne / Panthéon epistemology & GR",
-    status: "PLANNED"
-  },
-
-  {
-    year: 2026,
-    title: "Aerospace engineering IPSA",
-    desc: "Propulsion systems + alternance",
-    status: "PLANNED"
-  },
-
-  {
-    year: 2027,
-    title: "Private Pilot License",
-    desc: "Flight missions + exploration",
-    status: "PLANNED"
-  },
-
-  {
-    year: 2031,
-    title: "Doctorates",
-    desc: "Cosmology + Philosophy of science",
-    status: "FUTURE"
-  },
-
-  {
-    year: 2035,
-    title: "Exploration synthesis",
-    desc: "Space + aviation integration",
-    status: "FUTURE"
-  }
+  { year: 2001, title: "Birth", desc: "System initialization", status: "DONE" },
+  { year: 2015, title: "Scientific curiosity", desc: "First structured thinking phase", status: "DONE" },
+  { year: 2023, title: "Aviation exploration", desc: "Trajectory toward flight systems", status: "DONE" },
+  { year: 2026, title: "Exploration phase", desc: "Active multi-domain research", status: "ACTIVE" },
+  { year: 2028, title: "M2 Astrophysics", desc: "Advanced theoretical physics training", status: "PLANNED" },
+  { year: 2035, title: "Exploration synthesis", desc: "Aviation + space + philosophy integration", status: "FUTURE" },
 ];
-
-/* ---------------- UTIL: smooth easing toward target ---------------- */
-function approach(current: number, target: number, speed: number) {
-  return current + (target - current) * speed;
-}
 
 export default function Home() {
   const [page, setPage] = useState(0);
+  const [hover, setHover] = useState<number | null>(null);
   const [boot, setBoot] = useState(true);
   const [utc, setUtc] = useState("");
-
-  const [flightHours, setFlightHours] = useState(0);
-  const [experience, setExperience] = useState(0);
-
-  const targetFlightHours = 42;
-  const targetExperience = 8;
-
-  const [timelineOpen, setTimelineOpen] = useState<number | null>(null);
-  const [timelineIndex, setTimelineIndex] = useState(0);
+  const [flightHours] = useState(42);
 
   /* ---------------- BOOT ---------------- */
   useEffect(() => {
-    const t = setTimeout(() => setBoot(false), 2200);
+    const t = setTimeout(() => setBoot(false), 2700);
     return () => clearTimeout(t);
   }, []);
 
@@ -97,12 +33,12 @@ export default function Home() {
     return () => clearInterval(i);
   }, []);
 
-  /* ---------------- NAV ---------------- */
+  /* ---------------- SCROLL NAV ---------------- */
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       if (boot) return;
 
-      if (e.deltaY > 0) setPage((p) => Math.min(4, p + 1));
+      if (e.deltaY > 0) setPage((p) => Math.min(6, p + 1));
       else setPage((p) => Math.max(0, p - 1));
     };
 
@@ -110,39 +46,11 @@ export default function Home() {
     return () => window.removeEventListener("wheel", onWheel);
   }, [boot]);
 
-  /* ---------------- PROGRESSIVE ANIMATION ---------------- */
-  useEffect(() => {
-    if (boot) return;
-
-    let frame: number;
-
-    const tick = () => {
-      setFlightHours((v) => approach(v, targetFlightHours, 0.04));
-      setExperience((v) => approach(v, targetExperience, 0.02));
-
-      frame = requestAnimationFrame(tick);
-    };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [boot]);
-
-  /* ---------------- GROUP TIMELINE BY YEAR ---------------- */
-  const groupedTimeline = useMemo(() => {
-    const map = new Map<number, typeof missions>();
-
-    missions.forEach((m) => {
-      if (!map.has(m.year)) map.set(m.year, []);
-      map.get(m.year)!.push(m);
-    });
-
-    return Array.from(map.entries());
-  }, []);
-
+  /* ---------------- BOOT SCREEN ---------------- */
   if (boot) {
     return (
       <div className="boot">
-        <div className="bootText">INITIALIZING EXPLORATION SYSTEM...</div>
+        <div className="bootText">INITIALIZING MISSION SYSTEM...</div>
       </div>
     );
   }
@@ -150,21 +58,22 @@ export default function Home() {
   return (
     <main className="main">
 
+      {/* BACKGROUND */}
       <div className="bg" />
       <div className="grid" />
       <div className="glow" />
 
-      {/* ---------------- HUD ---------------- */}
+      {/* HUD */}
       <header className="hud">
         <div>STATUS: ONLINE</div>
         <div>RAMZI ZIRIAT // EXPLORATION SYSTEM</div>
         <div>{utc}</div>
-        <div className="hudStats">{flightHours.toFixed(1)}h FLIGHT</div>
+        <div>FLIGHT HOURS: {flightHours}h</div>
       </header>
 
-      {/* ---------------- SIDEBAR ---------------- */}
+      {/* SIDEBAR */}
       <aside className="sidebar">
-        {["HOME", "MISSION", "TIMELINE", "LAB", "MAP"].map((s, i) => (
+        {["HOME", "SPONSORS", "MISSION", "VISION", "FLIGHT LAB", "MAP", "CONTACT"].map((s, i) => (
           <div
             key={s}
             className={`dot ${page === i ? "active" : ""}`}
@@ -173,132 +82,111 @@ export default function Home() {
         ))}
       </aside>
 
-      {/* ---------------- VIEWPORT ---------------- */}
+      {/* VIEWPORT */}
       <div className="viewport" style={{ transform: `translateY(-${page * 100}vh)` }}>
 
         {/* ---------------- HOME ---------------- */}
         <section className="section">
-          <h1 className="bigTitle">{flightHours.toFixed(1)}h</h1>
+          <h1>RAMZI ZIRIAT</h1>
+          <p>EXPLORATION SYSTEM — AERONAUTICS · ASTROPHYSICS · PHILOSOPHY · COSMOLOGY</p>
 
-          <p className="subtitle">
-            Astrophysics · Cosmology · Philosophy · Aerospace Exploration
+          <div className="cards">
+            <div className="card"><h3>ASTROPHYSICS</h3><p>M2 theoretical physics systems</p></div>
+            <div className="card"><h3>PHILOSOPHY</h3><p>Epistemology & models of reality</p></div>
+            <div className="card"><h3>AEROSPACE</h3><p>Flight systems & propulsion</p></div>
+          </div>
+        </section>
+
+        {/* ---------------- SPONSORS ---------------- */}
+        <section className="section">
+          <h2>MISSION PARTNERS</h2>
+
+          <p style={{ maxWidth: "800px", textAlign: "center", opacity: 0.8 }}>
+            Independent research program seeking collaboration in astrophysics,
+            aerospace engineering and scientific communication.
           </p>
 
           <div className="cards">
             <div className="card">
-              <h3>FLIGHT HOURS</h3>
-              <p className="big">{flightHours.toFixed(1)}h</p>
+              <h3>RESEARCH</h3>
+              <p>Pulsars, lensing, high-energy astrophysics</p>
             </div>
 
             <div className="card">
-              <h3>ACADEMIC TRACK</h3>
-              <p>M2 Astro + M2 Cosmo + Philosophy</p>
+              <h3>AEROSPACE</h3>
+              <p>Flight training, propulsion, aviation systems</p>
             </div>
 
             <div className="card">
-              <h3>EXPERIENCE</h3>
-              <p>{experience.toFixed(1)} YEARS ACTIVE</p>
+              <h3>MEDIA</h3>
+              <p>Documentaries & exploration storytelling</p>
             </div>
           </div>
+
+          <button className="cta">CONTACT MISSION CONTROL</button>
         </section>
 
         {/* ---------------- CURRENT MISSION ---------------- */}
         <section className="section">
           <h2>CURRENT MISSION</h2>
 
-          <div className="split">
+          <div className="panel" style={{ width: "60%" }}>
+            <h3>2026 ACTIVE RESEARCH PHASE</h3>
 
-            <div className="left">
-              <h3>2026 ACTIVE PROGRAM</h3>
+            <p>
+              Multi-domain research in astrophysics, cosmology and philosophy of science
+              combined with aerospace engineering training.
+            </p>
 
-              <p>
-                Multi-domain research combining astrophysics,
-                cosmology, philosophy of science and aerospace engineering.
-              </p>
+            <p>
+              Pulsar spectra analysis · gravitational microlensing · neutron irradiation experiments
+            </p>
 
-              <p>
-                Axes: AERO · COSMO · ASTRO · EXPLORATION
-              </p>
-
-              <button className="cta">SEE PROJECTS</button>
-            </div>
-
-            <div className="right" />
+            <p>Parallel track: IPSA aerospace engineering (propulsion systems)</p>
           </div>
         </section>
 
-        {/* ---------------- TIMELINE ---------------- */}
+        {/* ---------------- VISION TIMELINE ---------------- */}
         <section className="section">
           <h2>VISION TIMELINE</h2>
 
           <div className="timeline">
-
             <div className="line" />
 
-            {groupedTimeline.map(([year, events], i) => (
+            {missions.map((m, i) => (
               <div
-                key={year}
+                key={i}
                 className="node"
-                style={{ left: `${(i / (groupedTimeline.length - 1)) * 100}%` }}
-                onClick={() => {
-                  setTimelineOpen(i);
-                  setTimelineIndex(0);
-                }}
+                style={{ left: `${(i / (missions.length - 1)) * 100}%` }}
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
               >
-                <div className="dotNode" />
-                <span className="year">{year}</span>
+                <div className={`dotNode ${m.status}`} />
+                <span className="year">{m.year}</span>
 
-                {timelineOpen === i && (
-                  <div className="popup">
-
-                    <h3>{events[timelineIndex].title}</h3>
-                    <p>{events[timelineIndex].desc}</p>
-
-                    {/* SLIDER DOTS */}
-                    <div className="dots">
-                      {events.map((_, idx) => (
-                        <div
-                          key={idx}
-                          className={`miniDot ${idx === timelineIndex ? "active" : ""}`}
-                          onClick={() => setTimelineIndex(idx)}
-                        />
-                      ))}
+                {hover === i && (
+                  <div className="tooltip">
+                    <h3>{m.title}</h3>
+                    <p>{m.desc}</p>
+                    <div style={{ fontSize: "10px", opacity: 0.7 }}>
+                      STATUS: {m.status}
                     </div>
-
+                    <div className="imgBox" />
                   </div>
                 )}
               </div>
             ))}
-
           </div>
         </section>
 
-        {/* ---------------- LAB ---------------- */}
+        {/* ---------------- FLIGHT LAB ---------------- */}
         <section className="section">
-          <h2>AEROSPACE SYSTEMS</h2>
+          <h2>FLIGHT LAB</h2>
 
           <div className="lab">
-
-            <div className="panel clickable">
-              <h3>ONERA</h3>
-              <p>Aerodynamics & propulsion research</p>
-            </div>
-
-            <div className="panel clickable">
-              <h3>CNES</h3>
-              <p>Space missions & orbital systems</p>
-            </div>
-
-            <div className="panel clickable">
-              <h3>IPSA PROPULSION</h3>
-              <p>Engineering & flight systems</p>
-            </div>
-
-            <div className="panel clickable">
-              <h3>RESEARCH LABS</h3>
-              <p>LPC2E / APC / L2C collaborations</p>
-            </div>
-
+            <div className="panel"><h3>FLIGHT MODEL</h3><p>Aerodynamics simulation</p></div>
+            <div className="panel"><h3>ASTRO MODULE</h3><p>Orbital mechanics</p></div>
+            <div className="panel"><h3>PHILOSOPHY ENGINE</h3><p>Observer vs reality</p></div>
           </div>
         </section>
 
@@ -310,6 +198,17 @@ export default function Home() {
             className="map"
             src="https://www.openstreetmap.org/export/embed.html"
           />
+        </section>
+
+        {/* ---------------- CONTACT ---------------- */}
+        <section className="section">
+          <h2>COLLABORATE</h2>
+
+          <p style={{ maxWidth: "800px", textAlign: "center", opacity: 0.8 }}>
+            Seeking institutional, aerospace and media partnerships.
+          </p>
+
+          <button className="cta">REQUEST PARTNERSHIP</button>
         </section>
 
       </div>

@@ -9,6 +9,7 @@ html, body {
   font-family: system-ui;
 }
 
+/* ---------------- BOOT ---------------- */
 .boot {
   position: fixed;
   inset: 0;
@@ -28,15 +29,14 @@ html, body {
   50% { opacity: 0.2; }
 }
 
-/* BACKGROUND */
+/* ---------------- BACKGROUND ---------------- */
 .bg {
   position: fixed;
   inset: 0;
-  background-image: url("public/glacier.jpg");
+  background-image: url("/glacier.jpg");
   background-size: cover;
   background-position: center;
-  filter: blur(9px) brightness(0.4) saturate(1.0);
-  transform: scale(0.99);
+  filter: blur(9px) brightness(0.4);
 }
 
 .grid {
@@ -58,7 +58,7 @@ html, body {
   background: radial-gradient(circle, rgba(76,201,240,0.18), transparent 60%);
 }
 
-/* HUD BAR */
+/* ---------------- HUD ---------------- */
 .hud {
   position: fixed;
   top: 0;
@@ -72,16 +72,11 @@ html, body {
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
-.hud-right {
-  text-align: right;
-}
-
-/* VIEWPORT */
+/* ---------------- VIEW ---------------- */
 .viewport {
   transition: transform 0.8s cubic-bezier(0.77,0,0.175,1);
 }
 
-/* SECTION */
 .section {
   height: 100vh;
   display: flex;
@@ -90,11 +85,11 @@ html, body {
   align-items: center;
 }
 
-/* TEXT */
+/* ---------------- TEXT ---------------- */
 h1 { font-size: 60px; letter-spacing: 0.4em; }
 h2 { font-size: 40px; letter-spacing: 0.2em; }
 
-/* CARDS */
+/* ---------------- CARDS ---------------- */
 .cards {
   display: flex;
   gap: 20px;
@@ -104,11 +99,18 @@ h2 { font-size: 40px; letter-spacing: 0.2em; }
 .card {
   border: 1px solid rgba(255,255,255,0.2);
   padding: 15px;
-  width: 200px;
+  width: 220px;
   backdrop-filter: blur(10px);
 }
 
-/* SIDEBAR */
+/* ---------------- PANEL ---------------- */
+.panel {
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 20px;
+  backdrop-filter: blur(10px);
+}
+
+/* ---------------- SIDEBAR ---------------- */
 .sidebar {
   position: fixed;
   right: 20px;
@@ -128,7 +130,7 @@ h2 { font-size: 40px; letter-spacing: 0.2em; }
   background: #4cc9f0;
 }
 
-/* TIMELINE */
+/* ---------------- TIMELINE ---------------- */
 .timeline {
   position: relative;
   width: 80%;
@@ -174,7 +176,7 @@ h2 { font-size: 40px; letter-spacing: 0.2em; }
   margin-top: 10px;
 }
 
-/* FLIGHT LAB */
+/* ---------------- FLIGHT LAB ---------------- */
 .lab {
   display: flex;
   gap: 20px;
@@ -183,12 +185,27 @@ h2 { font-size: 40px; letter-spacing: 0.2em; }
 .panel {
   border: 1px solid rgba(255,255,255,0.2);
   padding: 15px;
-  width: 200px;
+  width: 220px;
 }
 
-/* MAP */
+/* ---------------- MAP ---------------- */
 .map {
   width: 70%;
   height: 400px;
   border: none;
+}
+
+/* ---------------- CTA ---------------- */
+.cta {
+  margin-top: 20px;
+  padding: 10px 20px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(76,201,240,0.1);
+  color: #e5f0ff;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+}
+
+.cta:hover {
+  background: rgba(76,201,240,0.25);
 }

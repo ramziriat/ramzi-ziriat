@@ -7,15 +7,70 @@ html, body {
   font-family: system-ui;
 }
 
-/* BACKGROUND */
+/* ---------------- BOOT ---------------- */
+.boot {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: black;
+}
+
+.bootCore {
+  font-size: 14px;
+  letter-spacing: 0.4em;
+  position: relative;
+  animation: fadeBoot 3s ease-in-out;
+}
+
+.bootGlow {
+  position: absolute;
+  inset: -100px;
+  background: radial-gradient(circle, rgba(76,201,240,0.2), transparent);
+  animation: pulse 3s infinite;
+}
+
+@keyframes pulse {
+  50% { transform: scale(1.2); opacity: 0.4; }
+}
+
+@keyframes fadeBoot {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---------------- NEURAL ---------------- */
+.neural {
+  position: relative;
+}
+
+.node {
+  position: absolute;
+  transition: all 0.4s ease;
+}
+
+.activeNode {
+  color: #4cc9f0;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inactiveNode {
+  width: 6px;
+  height: 6px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+}
+
+/* ---------------- CORE UI ---------------- */
 .bg {
   position: fixed;
   inset: 0;
   background-image: url("public/glacier.jpg");
   background-size: cover;
-  background-position: center;
   filter: blur(14px) brightness(0.5);
-  transform: scale(1.1);
 }
 
 .grid {
@@ -44,138 +99,21 @@ html, body {
   width: 100%;
   display: flex;
   justify-content: space-between;
-  padding: 12px 20px;
-  font-size: 12px;
-  letter-spacing: 0.15em;
-  z-index: 10;
+  padding: 12px;
+  font-size: 11px;
 }
 
 /* VIEWPORT */
 .viewport {
-  transition: transform 0.9s cubic-bezier(0.77,0,0.175,1);
+  transition: transform 1s cubic-bezier(0.77,0,0.175,1);
 }
 
-/* SECTION */
+/* SECTIONS */
 .section {
   height: 100vh;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-}
-
-/* SPLIT SECTION */
-.split {
-  flex-direction: row;
-  justify-content: space-between;
-  padding: 0 10%;
-}
-
-.left {
-  width: 45%;
-}
-
-.right {
-  width: 45%;
-}
-
-.imgMock {
-  width: 100%;
-  height: 300px;
-  background: rgba(255,255,255,0.1);
-}
-
-/* TEXT */
-h1 { font-size: 60px; letter-spacing: 0.4em; }
-h2 { font-size: 40px; }
-
-/* BIG METRIC */
-.bigMetric {
-  text-align: center;
-  margin: 20px 0;
-}
-
-.bigMetric h2 {
-  font-size: 80px;
-  margin: 0;
-  color: #4cc9f0;
-}
-
-/* CARDS */
-.cards {
-  display: flex;
-  gap: 20px;
-}
-
-.card {
-  border: 1px solid rgba(255,255,255,0.2);
-  padding: 15px;
-  width: 200px;
-}
-
-/* CTA */
-.cta {
-  margin-top: 20px;
-  padding: 10px 20px;
-  background: rgba(76,201,240,0.2);
-  border: 1px solid rgba(255,255,255,0.3);
-  cursor: pointer;
-}
-
-/* SIDEBAR */
-.sidebar {
-  position: fixed;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin: 10px;
-  background: rgba(255,255,255,0.3);
-}
-
-.dot.active {
-  background: #4cc9f0;
-}
-
-/* TIMELINE */
-.timeline {
-  position: relative;
-  width: 80%;
-}
-
-.line {
-  position: absolute;
-  top: 50%;
-  width: 100%;
-  height: 2px;
-  background: rgba(255,255,255,0.2);
-}
-
-.node {
-  position: absolute;
-  top: 40%;
-  transform: translateX(-50%);
-}
-
-.dotNode {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #4cc9f0;
-}
-
-.tooltip {
-  position: absolute;
-  top: 30px;
-  left: -80px;
-  width: 200px;
-  background: rgba(0,0,0,0.7);
-  padding: 10px;
+  justify-content: center;
 }
 
 /* LAB */
@@ -186,8 +124,8 @@ h2 { font-size: 40px; }
 }
 
 .panel {
-  border: 1px solid rgba(255,255,255,0.2);
   padding: 20px;
+  border: 1px solid rgba(255,255,255,0.2);
 }
 
 /* MAP */
@@ -195,4 +133,13 @@ h2 { font-size: 40px; }
   width: 70%;
   height: 400px;
   border: none;
+}
+
+/* CTA */
+.cta {
+  margin-top: 20px;
+  padding: 10px 20px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(76,201,240,0.2);
+  cursor: pointer;
 }

@@ -1,5 +1,3 @@
-@import "tailwindcss";
-
 html, body {
   margin: 0;
   padding: 0;
@@ -13,10 +11,11 @@ html, body {
 .bg {
   position: fixed;
   inset: 0;
-  background-image: url("/glacier.jpg");
+  background-image: url("public/glacier.jpg");
   background-size: cover;
   background-position: center;
-  filter: blur(10px) brightness(0.35);
+  filter: blur(14px) brightness(0.6);
+  transform: scale(1.1);
 }
 
 .grid {
@@ -38,7 +37,7 @@ html, body {
   background: radial-gradient(circle, rgba(76,201,240,0.18), transparent 60%);
 }
 
-/* HUD */
+/* HUD BAR */
 .hud {
   position: fixed;
   top: 0;
@@ -48,19 +47,20 @@ html, body {
   padding: 12px 20px;
   font-size: 12px;
   letter-spacing: 0.15em;
+  z-index: 10;
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
-.flight {
-  font-weight: bold;
-  color: #4cc9f0;
+.hud-right {
+  text-align: right;
 }
 
-/* VIEW */
+/* VIEWPORT */
 .viewport {
-  transition: transform 0.9s cubic-bezier(0.77,0,0.175,1);
+  transition: transform 0.8s cubic-bezier(0.77,0,0.175,1);
 }
 
+/* SECTION */
 .section {
   height: 100vh;
   display: flex;
@@ -69,49 +69,42 @@ html, body {
   align-items: center;
 }
 
-/* HOME */
-.home h1 {
-  font-size: 60px;
-  letter-spacing: 0.4em;
+/* TEXT */
+h1 { font-size: 60px; letter-spacing: 0.4em; }
+h2 { font-size: 40px; letter-spacing: 0.2em; }
+
+/* CARDS */
+.cards {
+  display: flex;
+  gap: 20px;
+  margin-top: 30px;
 }
 
-.bigMetric {
-  font-size: 80px;
-  color: #4cc9f0;
-  margin: 20px;
-}
-
-/* SPLIT LAYOUT */
-.split {
-  flex-direction: row;
-  justify-content: space-around;
-}
-
-.left {
-  width: 40%;
-}
-
-.right {
-  width: 40%;
-}
-
-.visualBox {
-  height: 300px;
-  background: rgba(255,255,255,0.05);
+.card {
   border: 1px solid rgba(255,255,255,0.2);
+  padding: 15px;
+  width: 200px;
+  backdrop-filter: blur(10px);
 }
 
-/* BUTTON */
-.cta {
-  margin-top: 20px;
-  padding: 10px 20px;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(76,201,240,0.1);
-  cursor: pointer;
+/* SIDEBAR */
+.sidebar {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-.cta:hover {
-  background: rgba(76,201,240,0.25);
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin: 12px;
+  background: rgba(255,255,255,0.3);
+}
+
+.dot.active {
+  background: #4cc9f0;
 }
 
 /* TIMELINE */
@@ -133,6 +126,7 @@ html, body {
   position: absolute;
   top: 40%;
   transform: translateX(-50%);
+  text-align: center;
 }
 
 .dotNode {
@@ -144,32 +138,31 @@ html, body {
 
 .tooltip {
   position: absolute;
-  top: 25px;
-  width: 200px;
-  background: rgba(10,15,40,0.95);
-  padding: 10px;
+  top: 30px;
+  left: -80px;
+  width: 220px;
+  background: rgba(10,15,40,0.9);
   border: 1px solid rgba(255,255,255,0.2);
+  padding: 10px;
+  backdrop-filter: blur(10px);
 }
 
-.eventCard {
-  margin-bottom: 8px;
+.imgBox {
+  height: 80px;
+  background: rgba(255,255,255,0.1);
+  margin-top: 10px;
 }
 
-/* LAB */
-.gridCards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+/* FLIGHT LAB */
+.lab {
+  display: flex;
   gap: 20px;
 }
 
-.module {
+.panel {
   border: 1px solid rgba(255,255,255,0.2);
-  padding: 20px;
-  cursor: pointer;
-}
-
-.module:hover {
-  background: rgba(76,201,240,0.1);
+  padding: 15px;
+  width: 200px;
 }
 
 /* MAP */

@@ -227,7 +227,7 @@ function NeuralNetwork() {
     /* ---------------- ORBITAL RANDOM STRUCTURE ---------------- */
     for (let i = 0; i < totalNodes; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const radius = 150 + Math.random() * 100; // NOT PERFECT CIRCLE
+      const radius = 150 + Math.random() * 150; // NOT PERFECT CIRCLE
 
       const isActive = i < 5;
 
@@ -261,16 +261,10 @@ function NeuralNetwork() {
         const dirY = dym / (distMouse || 1);
 
         // only if close enough
-        const influence = distMouse < 250 ? (1 - distMouse / 250) : 0;
-
+        const influence = Math.max(0, 1 - distMouse / 250);
         // IMPORTANT: asymmetry based on position relative to center
         const fromCenterX = (n.x - center.x) / w;
 
-        const sideFactor = 0.99;
-
-        // movement is subtle, not destabilizing orbit
-        n.vx += dirX * influence * 0.25 * sideFactor;
-        n.vy += dirY * influence * 0.25 * sideFactor;
 
         /* ---------------- ORBIT STABILITY ---------------- */
         const ox = center.x + Math.cos(n.angle) * n.radius * 1.15;

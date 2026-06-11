@@ -4,12 +4,42 @@ import { useEffect, useState } from "react";
 
 /* ---------------- SYSTEM DATA ---------------- */
 const missions = [
-  { year: 2001, title: "Birth", desc: "System initialization", status: "DONE" },
-  { year: 2015, title: "Scientific curiosity", desc: "First structured thinking phase", status: "DONE" },
-  { year: 2023, title: "Aviation exploration", desc: "Trajectory toward flight systems", status: "DONE" },
-  { year: 2026, title: "Exploration phase", desc: "Active multi-domain research", status: "ACTIVE" },
-  { year: 2028, title: "M2 Astrophysics", desc: "Advanced theoretical physics training", status: "PLANNED" },
-  { year: 2035, title: "Exploration synthesis", desc: "Aviation + space + philosophy integration", status: "FUTURE" },
+  {
+    year: 2001,
+    title: "Birth",
+    desc: "System initialization",
+    status: "DONE",
+  },
+  {
+    year: 2015,
+    title: "Scientific curiosity",
+    desc: "First structured thinking phase",
+    status: "DONE",
+  },
+  {
+    year: 2023,
+    title: "Aviation exploration",
+    desc: "Trajectory toward flight systems",
+    status: "DONE",
+  },
+  {
+    year: 2026,
+    title: "Active Research Phase",
+    desc: "Astrophysics + Cosmology + Philosophy",
+    status: "ACTIVE",
+  },
+  {
+    year: 2028,
+    title: "M2 + Engineering Convergence",
+    desc: "Astrophysics + Aerospace integration",
+    status: "PLANNED",
+  },
+  {
+    year: 2035,
+    title: "Exploration Synthesis",
+    desc: "Science + Flight + Philosophy integration",
+    status: "FUTURE",
+  },
 ];
 
 export default function Home() {
@@ -18,7 +48,31 @@ export default function Home() {
   const [boot, setBoot] = useState(true);
   const [utc, setUtc] = useState("");
 
-  /* ---------------- BOOT SEQUENCE (RESTORED EXACT STYLE) ---------------- */
+  /* ---------------- FLIGHT HOURS ANIMATION ---------------- */
+  const [flightHours, setFlightHours] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const target = 42;
+    const duration = 2200;
+    const startTime = performance.now();
+
+    const animate = (t: number) => {
+      const progress = Math.min((t - startTime) / duration, 1);
+
+      // easing (slow near end)
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      const value = Math.floor(eased * target);
+      setFlightHours(value);
+
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+
+    requestAnimationFrame(animate);
+  }, []);
+
+  /* ---------------- BOOT ---------------- */
   useEffect(() => {
     const t = setTimeout(() => setBoot(false), 2500);
     return () => clearTimeout(t);
@@ -26,9 +80,7 @@ export default function Home() {
 
   /* ---------------- UTC CLOCK ---------------- */
   useEffect(() => {
-    const update = () => {
-      setUtc(new Date().toUTCString());
-    };
+    const update = () => setUtc(new Date().toUTCString());
     update();
     const i = setInterval(update, 1000);
     return () => clearInterval(i);
@@ -38,7 +90,6 @@ export default function Home() {
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       if (boot) return;
-
       if (e.deltaY > 0) setPage((p) => Math.min(3, p + 1));
       else setPage((p) => Math.max(0, p - 1));
     };
@@ -47,19 +98,16 @@ export default function Home() {
     return () => window.removeEventListener("wheel", onWheel);
   }, [boot]);
 
-  /* ---------------- BOOT SCREEN ---------------- */
   if (boot) {
     return (
       <div className="boot">
-        <div className="bootText">
-          INITIALIZING MISSION SYSTEM...
-        </div>
+        <div className="bootText">INITIALIZING MISSION SYSTEM...</div>
       </div>
     );
   }
 
   return (
-    <main className="main">
+    <main>
 
       {/* BACKGROUND */}
       <div className="bg" />
@@ -71,11 +119,12 @@ export default function Home() {
         <div>STATUS: ONLINE</div>
         <div>RAMZI ZIRIAT // EXPLORATION SYSTEM</div>
         <div>{utc}</div>
+        <div>FLIGHT HOURS: {flightHours}h</div>
       </header>
 
       {/* SIDEBAR */}
       <aside className="sidebar">
-        {["HOME", "VISION", "FLIGHT LAB", "MAP"].map((s, i) => (
+        {["HOME", "VISION", "LAB", "MAP"].map((s, i) => (
           <div
             key={s}
             className={`dot ${page === i ? "active" : ""}`}
@@ -85,34 +134,66 @@ export default function Home() {
       </aside>
 
       {/* VIEWPORT */}
-      <div className="viewport" style={{ transform: `translateY(-${page * 100}vh)` }}>
+      <div
+        className="viewport"
+        style={{ transform: `translateY(-${page * 100}vh)` }}
+      >
 
         {/* ---------------- HOME ---------------- */}
         <section className="section">
           <h1>RAMZI ZIRIAT</h1>
-          <p>
-            EXPLORATION SYSTEM — AERONAUTICS · ASTROPHYSICS · PHILOSOPHY · COSMOLOGY
+
+          <p className="subtitle">
+            MULTI-DOMAIN EXPLORATION SYSTEM — AEROSPACE · COSMOLOGY · PHILOSOPHY
           </p>
+
+          <div className="bigMetric">
+            <h2>{flightHours}h</h2>
+            <p>FLIGHT EXPERIENCE (PPL TRACK)</p>
+          </div>
 
           <div className="cards">
             <div className="card">
-              <h3>ASTROPHYSICS (M2)</h3>
-              <p>Theoretical & computational physics systems</p>
+              <h3>ASTROPHYSICS</h3>
+              <p>Quantum gravity / pulsars / lensing systems</p>
             </div>
 
             <div className="card">
-              <h3>PHILOSOPHY OF SCIENCE</h3>
-              <p>Epistemology, observation limits, models of reality</p>
+              <h3>PHILOSOPHY</h3>
+              <p>Epistemology of observation & reality models</p>
             </div>
 
             <div className="card">
-              <h3>EXPLORATION SYSTEMS</h3>
-              <p>Aviation + space mission conceptualization</p>
+              <h3>EXPLORATION</h3>
+              <p>Aircraft + space + scientific field missions</p>
             </div>
           </div>
         </section>
 
-        {/* ---------------- VISION TIMELINE ---------------- */}
+        {/* ---------------- CURRENT MISSION ---------------- */}
+        <section className="section split">
+          <div className="left">
+            <h2>CURRENT MISSION</h2>
+
+            <p>
+              Active interdisciplinary research program combining astrophysics,
+              cosmology and philosophy of science.
+            </p>
+
+            <p>
+              Pulsars (LPC2E), microlensing quasars (APC Paris),
+              neutron irradiation (L2C Montpellier).
+            </p>
+
+            <button className="cta">SEE PROJECTS</button>
+          </div>
+
+          <div className="right">
+            <div className="imgMock" />
+          </div>
+        </section>
+
+        {/* ---------------- TIMELINE ---------------- */}
         <section className="section">
           <h2>VISION TIMELINE</h2>
 
@@ -134,7 +215,6 @@ export default function Home() {
                   <div className="tooltip">
                     <h3>{m.title}</h3>
                     <p>{m.desc}</p>
-                    <div className="imgBox" />
                   </div>
                 )}
               </div>
@@ -146,37 +226,22 @@ export default function Home() {
         <section className="section">
           <h2>FLIGHT LAB</h2>
 
-          <div className="lab">
-            <div className="panel">
-              <h3>FLIGHT MODEL</h3>
-              <p>Aerodynamics simulation layer</p>
-              <p>Navigation: conceptual IFR/VFR</p>
-            </div>
-
-            <div className="panel">
-              <h3>ASTRO MODULE</h3>
-              <p>Orbital mechanics (future)</p>
-              <p>Trajectory modeling systems</p>
-            </div>
-
-            <div className="panel">
-              <h3>PHILOSOPHY ENGINE</h3>
-              <p>Model: observer vs reality</p>
-              <p>Uncertainty & epistemic limits</p>
-            </div>
+          <div className="labGrid">
+            <div className="panel">FLIGHT MODEL</div>
+            <div className="panel">ASTRO MODULE</div>
+            <div className="panel">PROPULSION</div>
+            <div className="panel">SIMULATION</div>
           </div>
         </section>
 
         {/* ---------------- MAP ---------------- */}
         <section className="section">
           <h2>EXPLORATION MAP</h2>
-
           <iframe
             className="map"
             src="https://www.openstreetmap.org/export/embed.html"
           />
         </section>
-
       </div>
     </main>
   );

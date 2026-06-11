@@ -72,11 +72,17 @@ html, body {
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
-/* ---------------- VIEW ---------------- */
+.hudStats {
+  color: #4cc9f0;
+  font-weight: bold;
+}
+
+/* ---------------- VIEWPORT ---------------- */
 .viewport {
   transition: transform 0.8s cubic-bezier(0.77,0,0.175,1);
 }
 
+/* ---------------- SECTION ---------------- */
 .section {
   height: 100vh;
   display: flex;
@@ -88,6 +94,11 @@ html, body {
 /* ---------------- TEXT ---------------- */
 h1 { font-size: 60px; letter-spacing: 0.4em; }
 h2 { font-size: 40px; letter-spacing: 0.2em; }
+
+.subtitle {
+  opacity: 0.7;
+  text-align: center;
+}
 
 /* ---------------- CARDS ---------------- */
 .cards {
@@ -103,11 +114,9 @@ h2 { font-size: 40px; letter-spacing: 0.2em; }
   backdrop-filter: blur(10px);
 }
 
-/* ---------------- PANEL ---------------- */
-.panel {
-  border: 1px solid rgba(255,255,255,0.2);
-  padding: 20px;
-  backdrop-filter: blur(10px);
+.big {
+  font-size: 28px;
+  color: #4cc9f0;
 }
 
 /* ---------------- SIDEBAR ---------------- */
@@ -170,13 +179,32 @@ h2 { font-size: 40px; letter-spacing: 0.2em; }
   backdrop-filter: blur(10px);
 }
 
-.imgBox {
-  height: 80px;
-  background: rgba(255,255,255,0.1);
-  margin-top: 10px;
+.status {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-top: 5px;
 }
 
-/* ---------------- FLIGHT LAB ---------------- */
+/* ---------------- SPLIT ---------------- */
+.split {
+  display: flex;
+  gap: 40px;
+  width: 80%;
+  align-items: center;
+}
+
+.left {
+  flex: 1;
+}
+
+.right {
+  flex: 1;
+  height: 300px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* ---------------- LAB ---------------- */
 .lab {
   display: flex;
   gap: 20px;
@@ -185,7 +213,17 @@ h2 { font-size: 40px; letter-spacing: 0.2em; }
 .panel {
   border: 1px solid rgba(255,255,255,0.2);
   padding: 15px;
-  width: 220px;
+  width: 200px;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.clickable:hover {
+  transform: scale(1.05);
+  border-color: #4cc9f0;
 }
 
 /* ---------------- MAP ---------------- */
@@ -197,7 +235,7 @@ h2 { font-size: 40px; letter-spacing: 0.2em; }
 
 /* ---------------- CTA ---------------- */
 .cta {
-  margin-top: 20px;
+  margin-top: 15px;
   padding: 10px 20px;
   border: 1px solid rgba(255,255,255,0.3);
   background: rgba(76,201,240,0.1);

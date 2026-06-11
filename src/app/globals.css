@@ -33,7 +33,7 @@ html, body {
 .bg {
   position: fixed;
   inset: 0;
-  background-image: url("public/glacier.jpg");
+  background-image: url("/glacier.jpg");
   background-size: cover;
   background-position: center;
   filter: blur(9px) brightness(0.4);

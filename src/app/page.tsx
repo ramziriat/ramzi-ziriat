@@ -377,7 +377,7 @@ function NeuralNetwork() {
 
         const distC = Math.sqrt(dxC * dxC + dyC * dyC) || 1;
 
-        const clusterForce = 0.001; // 🔥 stabilisé (plus de collapse)
+        const clusterForce = 0.0001; // 🔥 stabilisé (plus de collapse)
 
         n.vx += (dxC / distC) * clusterForce * 6;
         n.vy += (dyC / distC) * clusterForce * 6;

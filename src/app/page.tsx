@@ -227,33 +227,37 @@ function NeuralNetwork() {
 
     const mouse = { x: 0, y: 0 };
 
-    /* ---------------- DOMAINS (5 ZONES CÉRÉBRALES) ---------------- */
-    const clusters = [
+    /* ---------------- DOMAINS ---------------- */
+    const domains = [
       {
-        name: "Cosmology",
-        active: ["CMB", "Dark Matter", "Dark Energy", "Inflation"],
+        name: "cosmology",
+        color: "rgba(120,180,255,0.9)",
+        centerBias: 0.9,
       },
       {
-        name: "Astrophysics",
-        active: ["Pulsars", "Microlensing", "Spectroscopy"],
+        name: "astrophysics",
+        color: "rgba(80,160,255,0.9)",
+        centerBias: 0.8,
       },
       {
-        name: "Pilot",
-        active: ["IFR", "Navigation", "Flight Control"],
+        name: "pilot",
+        color: "rgba(60,140,255,0.9)",
+        centerBias: 0.7,
       },
       {
-        name: "Aerospace",
-        active: ["Propulsion", "Avionics", "Flight Dynamics"],
+        name: "aerospace",
+        color: "rgba(40,120,255,0.9)",
+        centerBias: 0.85,
       },
       {
-        name: "Philosophy",
-        active: ["Epistemology", "Observation", "Uncertainty"],
+        name: "philosophy",
+        color: "rgba(160,200,255,0.9)",
+        centerBias: 0.75,
       },
     ];
 
-    const TOTAL_ACTIVE = 20;
-    const TOTAL_INACTIVE = 200;
-    const TOTAL = TOTAL_ACTIVE + TOTAL_INACTIVE;
+    const ACTIVE_PER_DOMAIN = 4;
+    const INACTIVE_TOTAL = 200;
 
     const nodes: any[] = [];
 
@@ -262,218 +266,171 @@ function NeuralNetwork() {
       y: canvas.height / 2,
     });
 
-    /* ---------------- REDUCED RADIUS (IMPORTANT FIX) ---------------- */
-    const BASE_RADIUS = Math.min(canvas.width, canvas.height) * 0.18;
+    /* ---------------- CREATE CLUSTERED ACTIVE NODES ---------------- */
+    domains.forEach((d, di) => {
+      for (let i = 0; i < ACTIVE_PER_DOMAIN; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 180 + di * 30 + Math.random() * 40;
 
-    /* ---------------- INIT ---------------- */
-    for (let i = 0; i < TOTAL; i++) {
-      const isActive = i < TOTAL_ACTIVE;
+        nodes.push({
+          id: nodes.length,
+          domain: di,
+          active: true,
+          label: `${d.name}-${i}`,
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          angle,
+          radius,
+        });
+      }
+    });
 
-      const clusterId = isActive
-        ? i % clusters.length
-        : Math.floor(Math.random() * clusters.length);
-
-      const cluster = clusters[clusterId];
-
+    /* ---------------- INACTIVE NODES ---------------- */
+    for (let i = 0; i < INACTIVE_TOTAL; i++) {
+      const di = Math.floor(Math.random() * domains.length);
       const angle = Math.random() * Math.PI * 2;
-
-      // 🔻 RÉSEAU PLUS COMPACT
-      const radius =
-        (Math.pow(Math.random(), 1.4) * BASE_RADIUS + clusterId * 12) * 2.0;
-
-      const label =
-        isActive
-          ? cluster.active[i % cluster.active.length]
-          : "";
+      const radius = 220 + Math.random() * 220;
 
       nodes.push({
-        id: i,
-        active: isActive,
-        clusterId,
-        clusterName: cluster.name,
-        label,
-        angle,
-        radius,
+        id: nodes.length,
+        domain: di,
+        active: false,
+        label: "",
         x: 0,
         y: 0,
         vx: 0,
         vy: 0,
-        pulse: 0,
-        activity: 0,
+        angle,
+        radius,
       });
     }
 
-    /* ---------------- PLACE INIT ---------------- */
-    const c = center();
-    for (const n of nodes) {
-      n.x = c.x + Math.cos(n.angle) * n.radius;
-      n.y = c.y + Math.sin(n.angle) * n.radius;
-    }
-
-    /* ---------------- KNN LINKS ---------------- */
-    const K = 4;
-    const links: Map<number, number[]> = new Map();
+    /* ---------------- GRAPH CONNECTIONS (LOCAL ONLY) ---------------- */
+    const links: any[] = [];
 
     for (let i = 0; i < nodes.length; i++) {
-      const a = nodes[i];
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i];
+        const b = nodes[j];
 
-      const neighbors = nodes
-        .filter((b) => b !== a)
-        .map((b, j) => {
-          const dx = a.x - b.x;
-          const dy = a.y - b.y;
-          return { j, d: dx * dx + dy * dy };
-        })
-        .sort((x, y) => x.d - y.d)
-        .slice(0, K)
-        .map((n) => n.j);
+        if (a.domain !== b.domain) continue;
 
-      links.set(i, neighbors);
+        const dx = a.radius - b.radius;
+        if (Math.abs(dx) < 120) {
+          links.push({ a, b });
+        }
+      }
     }
 
-    /* ---------------- SYSTEMS ---------------- */
+    /* ---------------- SIGNALS ---------------- */
     const signals: any[] = [];
-    const waves: any[] = [];
 
     const spawnSignal = (a: any, b: any) => {
+      if (!links.find(l => l.a === a && l.b === b || l.a === b && l.b === a)) return;
+
       signals.push({
         a,
         b,
         t: 0,
-        speed: 0.012 + Math.random() * 0.014,
-      });
-    };
-
-    const spawnWave = (origin: any) => {
-      waves.push({
-        origin,
-        radius: 0,
-        speed: 1.2,
-        max: 240,
+        speed: 0.012 + Math.random() * 0.01,
       });
     };
 
     /* ---------------- MOUSE ---------------- */
     const onMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
+      const r = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - r.left;
+      mouse.y = e.clientY - r.top;
     };
 
     canvas.addEventListener("mousemove", onMove);
 
     const draw = () => {
       const c = center();
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      let mouseOnNetwork = false;
-
-      /* ---------------- PHYSICS ---------------- */
+      /* ---------------- UPDATE NODES ---------------- */
       for (const n of nodes) {
+        const domain = domains[n.domain];
+
         const dx = mouse.x - n.x;
         const dy = mouse.y - n.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < 220) mouseOnNetwork = true;
+        const influence = dist < 260 ? (1 - dist / 260) * 0.12 : 0;
 
-        const influence = dist < 200 ? (1 - dist / 200) * 0.18 : 0;
+        const ox =
+          c.x +
+          Math.cos(n.angle) *
+          (n.radius * domain.centerBias);
 
-        n.vx += dx * influence * 0.01;
-        n.vy += dy * influence * 0.01;
-
-        // orbit stable
-        const ox = c.x + Math.cos(n.angle) * n.radius;
-        const oy = c.y + Math.sin(n.angle) * n.radius;
+        const oy =
+          c.y +
+          Math.sin(n.angle) *
+          (n.radius * domain.centerBias);
 
         n.vx += (ox - n.x) * 0.02;
         n.vy += (oy - n.y) * 0.02;
 
-        n.vx *= 0.9;
-        n.vy *= 0.9;
+        n.vx += dx * influence * 0.005;
+        n.vy += dy * influence * 0.005;
+
+        n.vx *= 0.92;
+        n.vy *= 0.92;
 
         n.x += n.vx;
         n.y += n.vy;
 
-        n.angle += 0.00045;
-
-        if (n.active && dist < 120 && Math.random() < 0.015) {
-          spawnWave(n);
-        }
-      }
-
-      /* ---------------- SPIKES (LINK-ONLY) ---------------- */
-      if (Math.random() < 0.007) {
-        const i = Math.floor(Math.random() * nodes.length);
-        const j = links.get(i)![
-          Math.floor(Math.random() * links.get(i)!.length)
-        ];
-        spawnSignal(nodes[i], nodes[j]);
-      }
-
-      if (mouseOnNetwork && Math.random() < 0.018) {
-        const i = Math.floor(Math.random() * nodes.length);
-        const j = links.get(i)![
-          Math.floor(Math.random() * links.get(i)!.length)
-        ];
-        spawnSignal(nodes[i], nodes[j]);
+        n.angle += 0.0004;
       }
 
       /* ---------------- LINKS ---------------- */
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i];
-        const neighbors = links.get(i)!;
-
-        for (const j of neighbors) {
-          const b = nodes[j];
-
-          const dx = a.x - b.x;
-          const dy = a.y - b.y;
-
-          ctx.strokeStyle = "rgba(76,201,240,0.06)";
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        }
+      for (const l of links) {
+        ctx.strokeStyle = "rgba(120,160,255,0.06)";
+        ctx.beginPath();
+        ctx.moveTo(l.a.x, l.a.y);
+        ctx.lineTo(l.b.x, l.b.y);
+        ctx.stroke();
       }
 
-      /* ---------------- SIGNALS ---------------- */
+      /* ---------------- SPIKES (ONLY ON LINKS) ---------------- */
+      if (Math.random() < 0.02) {
+        const l = links[Math.floor(Math.random() * links.length)];
+        if (l) spawnSignal(l.a, l.b);
+      }
+
       for (const s of signals) {
+        s.t += s.speed;
+        if (s.t >= 1) continue;
+
         const x = s.a.x + (s.b.x - s.a.x) * s.t;
         const y = s.a.y + (s.b.y - s.a.y) * s.t;
 
         ctx.beginPath();
-        ctx.fillStyle = "rgba(120,200,255,0.75)";
+        ctx.fillStyle = "rgba(120,200,255,0.85)";
         ctx.arc(x, y, 2, 0, Math.PI * 2);
         ctx.fill();
       }
 
       /* ---------------- NODES ---------------- */
       for (const n of nodes) {
-        const dx = mouse.x - n.x;
-        const dy = mouse.y - n.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        const near = dist < 100;
-        const hover = dist < 26;
-
-        let size = n.active ? 6 : 3;
-
-        if (near) size *= 1.25;
-        if (hover) size *= 2;
+        const domain = domains[n.domain];
 
         ctx.beginPath();
         ctx.fillStyle = n.active
-          ? "rgba(76,201,240,0.9)"
-          : "rgba(255,255,255,0.3)";
+          ? domain.color
+          : "rgba(255,255,255,0.25)";
 
-        ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
+        ctx.arc(n.x, n.y, n.active ? 5 : 3, 0, Math.PI * 2);
         ctx.fill();
 
-        if (n.active && near) {
-          ctx.fillStyle = hover ? "white" : "rgba(255,255,255,0.7)";
-          ctx.font = "11px system-ui";
-          ctx.fillText(n.label, n.x + 8, n.y + 4);
+        if (n.active) {
+          ctx.fillStyle = domain.color;
+          ctx.font = "10px system-ui";
+          ctx.fillText(n.label, n.x + 6, n.y + 3);
         }
       }
 
@@ -482,7 +439,10 @@ function NeuralNetwork() {
 
     draw();
 
-    return () => canvas.removeEventListener("mousemove", onMove);
+    return () => {
+      canvas.removeEventListener("mousemove", onMove);
+      window.removeEventListener("resize", resize);
+    };
   }, []);
 
   return <canvas ref={ref} className="neural" />;

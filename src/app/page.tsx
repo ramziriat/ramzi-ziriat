@@ -22,7 +22,7 @@ const TOTAL_NODES    = 155;
 const REGION_COUNT   = 8;
 const GRID_RES       = 10;   // px per Voronoi cell — bigger = faster
 const VORONOI_EVERY  = 3;    // recompute grid every N frames
-const NETWORK_RADIUS = 480;  // clip circle radius — Voronoi drawn only inside
+const NETWORK_RADIUS = 500;  // clip circle radius — Voronoi drawn only inside
 const REGION_HUES    = [200, 240, 280, 170, 210, 260, 190, 300];
 
 /* Fast HSL→RGB (h/s/l all 0-1) */

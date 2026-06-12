@@ -263,27 +263,84 @@ function NeuralNetwork() {
     });
 
     /* ---------------- INIT ---------------- */
-    for (let i = 0; i < TOTAL; i++) {
-      const angle = Math.random() * Math.PI * 2;
-
-      const radius =
-        (Math.pow(Math.random(), 1.6) * 220 + 40) * 2.0;
-
-      const isActive = i < 15;
-
-      nodes.push({
-        id: i,
-        angle,
-        radius,
+    const CLUSTERS = [
+      "Aerospace",
+      "Astrophysics",
+      "Cosmology",
+      "Philosophy",
+      "Pilot",
+    ];
+    
+    const clusterCenters = CLUSTERS.map((_, i) => {
+      const angle = (i / CLUSTERS.length) * Math.PI * 2;
+      const radius = 180; // distance entre clusters
+    
+      return {
         x: center().x + Math.cos(angle) * radius,
         y: center().y + Math.sin(angle) * radius,
-        vx: 0,
-        vy: 0,
-        active: isActive,
-        label: isActive ? activeLabels[i] : "",
-        pulse: 0,
-        activity: 0,
-      });
+      };
+    });
+    
+    const nodes: any[] = [];
+    
+    const TOTAL = 115;
+    const ACTIVE_PER_CLUSTER = 3; // 5 clusters → 15 actifs
+    
+    for (let i = 0; i < CLUSTERS.length; i++) {
+      const base = clusterCenters[i];
+    
+      const clusterNodes: any[] = [];
+    
+      // ACTIVE NODES (always grouped per domain)
+      for (let j = 0; j < ACTIVE_PER_CLUSTER; j++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 20 + Math.random() * 40;
+    
+        clusterNodes.push({
+          id: i * 100 + j,
+          angle,
+          radius: r,
+          x: base.x + Math.cos(angle) * r,
+          y: base.y + Math.sin(angle) * r,
+          vx: 0,
+          vy: 0,
+          active: true,
+          label:
+            i === 0 ? ["Orbital Mechanics", "Propulsion", "Aircraft Systems"][j] :
+            i === 1 ? ["Stars", "Black Holes", "Gravitation"][j] :
+            i === 2 ? ["Dark Matter", "Cosmology", "Expansion"][j] :
+            i === 3 ? ["Epistemology", "Ontology", "Logic"][j] :
+            ["Pilot Training", "Navigation", "Aerodynamics"][j],
+          cluster: i,
+          pulse: 0,
+          activity: 0,
+        });
+      }
+    
+      // INACTIVE NODES AROUND SAME CLUSTER
+      const INACTIVE = 20; // per cluster approx
+    
+      for (let j = 0; j < INACTIVE; j++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 30 + Math.random() * 90;
+    
+        clusterNodes.push({
+          id: i * 1000 + j,
+          angle,
+          radius: r,
+          x: base.x + Math.cos(angle) * r,
+          y: base.y + Math.sin(angle) * r,
+          vx: 0,
+          vy: 0,
+          active: false,
+          label: "",
+          cluster: i,
+          pulse: 0,
+          activity: 0,
+        });
+      }
+    
+      nodes.push(...clusterNodes);
     }
 
     /* ---------------- SYSTEMS ---------------- */

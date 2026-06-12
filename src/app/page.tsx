@@ -226,7 +226,7 @@ function NeuralNetwork() {
       "Pilot",
     ];
 
-    const TOTAL = 55; // +30 inactive added
+    const TOTAL = 55;
 
     const nodes: any[] = [];
 
@@ -235,20 +235,19 @@ function NeuralNetwork() {
       y: canvas.height / 2,
     });
 
-    /* ---------------- GENERATION (DENSE + CENTER ALLOWED) ---------------- */
+    /* ---------------- BIGGER NETWORK (×2 SCALE) ---------------- */
     for (let i = 0; i < TOTAL; i++) {
       const angle = Math.random() * Math.PI * 2;
 
-      // compact distribution INCLUDING center proximity
       const radius =
-        Math.pow(Math.random(), 1.6) * 220 + 40;
+        (Math.pow(Math.random(), 1.6) * 220 + 40) * 2.0;
 
       const isActive = i < 5;
 
       nodes.push({
+        id: i,
         angle,
         radius,
-        baseRadius: radius,
         x: 0,
         y: 0,
         vx: 0,
@@ -258,6 +257,19 @@ function NeuralNetwork() {
       });
     }
 
+    /* ---------------- SIGNAL SYSTEM ---------------- */
+    const signals: any[] = [];
+
+    const spawnSignal = (a: any, b: any) => {
+      signals.push({
+        a,
+        b,
+        t: 0,
+        speed: 0.015 + Math.random() * 0.02, // fast & rare
+      });
+    };
+
+    /* ---------------- MOUSE ---------------- */
     const onMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
@@ -271,33 +283,24 @@ function NeuralNetwork() {
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      /* ---------------- UPDATE PHYSICS ---------------- */
+      /* ---------------- PHYSICS ---------------- */
       for (const n of nodes) {
         const dx = mouse.x - n.x;
         const dy = mouse.y - n.y;
 
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        /* ---------------- CLUSTER INFLUENCE ---------------- */
-        const influence = dist < 220 ? (1 - dist / 220) : 0;
+        /* ---------------- REDUCED MOUSE FORCE (÷2) ---------------- */
+        const influence = dist < 220 ? (1 - dist / 220) * 0.5 : 0;
 
-        // soft attraction (cluster effect)
-        n.vx += dx * influence * 0.012;
-        n.vy += dy * influence * 0.012;
+        n.vx += dx * influence * 0.01;
+        n.vy += dy * influence * 0.01;
 
-        /* ---------------- SLIGHT LIVING DRIFT ---------------- */
-        const driftX = Math.sin(n.angle + Date.now() * 0.0002) * 0.05;
-        const driftY = Math.cos(n.angle + Date.now() * 0.0002) * 0.05;
-
-        n.vx += driftX;
-        n.vy += driftY;
-
-        /* ---------------- ORBIT ---------------- */
         const ox = c.x + Math.cos(n.angle) * n.radius;
         const oy = c.y + Math.sin(n.angle) * n.radius;
 
-        n.vx += (ox - n.x) * 0.018;
-        n.vy += (oy - n.y) * 0.018;
+        n.vx += (ox - n.x) * 0.015;
+        n.vy += (oy - n.y) * 0.015;
 
         n.vx *= 0.92;
         n.vy *= 0.92;
@@ -305,10 +308,27 @@ function NeuralNetwork() {
         n.x += n.vx;
         n.y += n.vy;
 
-        n.angle += 0.0006;
+        n.angle += 0.00055;
       }
 
-      /* ---------------- LINKS (ELASTIC FEEL) ---------------- */
+      /* ---------------- RANDOM SIGNAL SPAWNS ---------------- */
+      if (Math.random() < 0.02) {
+        const a = nodes[Math.floor(Math.random() * nodes.length)];
+        const b = nodes[Math.floor(Math.random() * nodes.length)];
+        if (a !== b) spawnSignal(a, b);
+      }
+
+      /* ---------------- SIGNAL UPDATE ---------------- */
+      for (let i = signals.length - 1; i >= 0; i--) {
+        const s = signals[i];
+        s.t += s.speed;
+
+        if (s.t >= 1) {
+          signals.splice(i, 1);
+        }
+      }
+
+      /* ---------------- LINKS ---------------- */
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i];
@@ -318,21 +338,33 @@ function NeuralNetwork() {
           const dy = a.y - b.y;
           const d = Math.sqrt(dx * dx + dy * dy);
 
-          if (d < 170) {
-            const alpha = 0.08 * (1 - d / 170);
-
-            ctx.strokeStyle = `rgba(76,201,240,${alpha})`;
+          if (d < 190) {
+            ctx.strokeStyle = "rgba(76,201,240,0.06)";
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
-
-            // slight curve = living network feel
-            const mx = (a.x + b.x) / 2 + Math.sin(d * 0.01) * 4;
-            const my = (a.y + b.y) / 2 + Math.cos(d * 0.01) * 4;
-
-            ctx.quadraticCurveTo(mx, my, b.x, b.y);
+            ctx.lineTo(b.x, b.y);
             ctx.stroke();
           }
         }
+      }
+
+      /* ---------------- DRAW SIGNALS (BRAIN SPIKES) ---------------- */
+      for (const s of signals) {
+        const ax = s.a.x;
+        const ay = s.a.y;
+        const bx = s.b.x;
+        const by = s.b.y;
+
+        const x = ax + (bx - ax) * s.t;
+        const y = ay + (by - ay) * s.t;
+
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(120,200,255,0.9)";
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "rgba(120,200,255,0.8)";
+        ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
       }
 
       /* ---------------- NODES ---------------- */
@@ -342,16 +374,14 @@ function NeuralNetwork() {
 
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        const near = dist < 90;
-        const hover = dist < 25;
+        const near = dist < 100;
+        const hover = dist < 28;
 
-        /* ---------------- SCALE SYSTEM ---------------- */
         let size = n.active ? 6 : 3;
 
         if (near) size *= 1.6;
-        if (hover) size *= 2.2;
+        if (hover) size *= 2.3;
 
-        /* ---------------- DRAW NODE ---------------- */
         ctx.beginPath();
 
         ctx.fillStyle = n.active
@@ -361,11 +391,10 @@ function NeuralNetwork() {
         ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
         ctx.fill();
 
-        /* ---------------- LABEL SYSTEM ---------------- */
         if (n.active && near) {
           ctx.fillStyle = hover
             ? "white"
-            : "rgba(255,255,255,0.7)";
+            : "rgba(255,255,255,0.75)";
 
           ctx.font = hover ? "14px system-ui" : "11px system-ui";
           ctx.fillText(n.label, n.x + 10, n.y + 4);

@@ -32,27 +32,7 @@ export default function Home() {
   const [hover, setHover] = useState<number | null>(null);
   const [boot, setBoot] = useState(true);
   const [utc, setUtc] = useState("");
-
-  /* ---------------- FLIGHT HOURS (SMOOTH EASING) ---------------- */
-  const [flightHours, setFlightHours] = useState(0);
-
-  useEffect(() => {
-    const target = 42;
-    const start = performance.now();
-
-    const animate = (t: number) => {
-      const p = clamp((t - start) / 2500, 0, 1);
-
-      // ease: fast start, slow end
-      const eased = 1 - Math.pow(1 - p, 4);
-
-      setFlightHours(Math.floor(eased * target));
-
-      if (p < 1) requestAnimationFrame(animate);
-    };
-
-    requestAnimationFrame(animate);
-  }, []);
+  }
 
   /* ---------------- BOOT ---------------- */
   useEffect(() => {

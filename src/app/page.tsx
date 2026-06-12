@@ -236,35 +236,16 @@ function NeuralNetwork() {
 
     const mouse = { x: 0, y: 0 };
 
-    /* =========================
-       STATE (NEW)
-    ========================= */
-    let focusRegion: number | null = null;
-    let zoom = 1;
-    let targetZoom = 1;
-    let offset = { x: 0, y: 0 };
-
+    /* ---------------- NODES ---------------- */
     const activeLabels = [
       "Aerospace",
       "Astrophysics",
       "Cosmology",
       "Philosophy",
       "Pilot",
-      "Propulsion",
-      "Orbital Mechanics",
-      "Quantum Gravity",
-      "Aviation Systems",
-      "Exoplanets",
-      "Spaceflight",
-      "Relativity",
-      "Neuroscience",
-      "Simulation",
-      "Exploration",
     ];
 
-    const TOTAL = 115;
-    const REGION_COUNT = 15;
-
+    const TOTAL = 55;
     const nodes: any[] = [];
 
     const center = () => ({
@@ -272,31 +253,62 @@ function NeuralNetwork() {
       y: canvas.height / 2,
     });
 
-    /* =========================
-       INIT NODES
-    ========================= */
     for (let i = 0; i < TOTAL; i++) {
       const angle = Math.random() * Math.PI * 2;
       const radius = (Math.pow(Math.random(), 1.6) * 220 + 40) * 2.0;
 
+      const isActive = i < 5;
+
       nodes.push({
         id: i,
-        region: i % REGION_COUNT,
         angle,
         radius,
         x: center().x + Math.cos(angle) * radius,
         y: center().y + Math.sin(angle) * radius,
         vx: 0,
         vy: 0,
-        active: i < 15,
-        label: i < 15 ? activeLabels[i] : "",
+        active: isActive,
+        label: isActive ? activeLabels[i] : "",
         pulse: 0,
         activity: 0,
       });
     }
 
-    const regions = Array.from({ length: REGION_COUNT });
+    /* ---------------- REGIONS (NEW LAYER) ---------------- */
+    const REGION_COUNT = 15;
 
+    const regions: any[] = Array.from({ length: REGION_COUNT }, (_, r) => ({
+      id: r,
+      nodes: [],
+      centerX: 0,
+      centerY: 0,
+    }));
+
+    nodes.forEach((n, i) => {
+      const regionIndex = i % REGION_COUNT;
+      regions[regionIndex].nodes.push(n);
+      n.region = regionIndex;
+    });
+
+    let selectedRegion: number | null = null;
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      for (const r of regions) {
+        const dx = x - r.centerX;
+        const dy = y - r.centerY;
+        const d = Math.sqrt(dx * dx + dy * dy);
+
+        if (d < 180) {
+          selectedRegion = r.id;
+        }
+      }
+    });
+
+    /* ---------------- SYSTEMS (UNCHANGED) ---------------- */
     const signals: any[] = [];
     const waves: any[] = [];
 
@@ -313,95 +325,78 @@ function NeuralNetwork() {
       waves.push({
         origin,
         radius: 0,
-        speed: 1.6,
+        speed: 1.6 + Math.random() * 0.6,
         max: 270,
       });
     };
 
-    /* =========================
-       INPUT
-    ========================= */
     const onMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
     };
 
-    const onClick = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+    canvas.addEventListener("mousemove", onMove);
 
-      const cx = center();
+    /* ---------------- DRAW LOOP ---------------- */
+    const draw = () => {
+      const c = center();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      /* find region clicked */
-      for (let r = 0; r < REGION_COUNT; r++) {
-        const nodesInR = nodes.filter((n) => n.region === r);
-        if (!nodesInR.length) continue;
+      let mouseOnNetwork = false;
 
-        const rx =
-          nodesInR.reduce((s, n) => s + n.x, 0) / nodesInR.length;
-        const ry =
-          nodesInR.reduce((s, n) => s + n.y, 0) / nodesInR.length;
+      /* ---------------- UPDATE REGIONS CENTERS ---------------- */
+      for (const r of regions) {
+        let cx = 0, cy = 0;
 
-        const dist = Math.hypot(x - rx, y - ry);
+        for (const n of r.nodes) {
+          cx += n.x;
+          cy += n.y;
+        }
 
-        if (dist < 180) {
-          focusRegion = r;
-          targetZoom = 2.2;
-          offset.x = cx.x - rx * 2.2;
-          offset.y = cx.y - ry * 2.2;
-          return;
+        r.centerX = cx / r.nodes.length;
+        r.centerY = cy / r.nodes.length;
+      }
+
+      /* ---------------- REGION REPULSION (NO OVERLAP) ---------------- */
+      for (let i = 0; i < regions.length; i++) {
+        for (let j = i + 1; j < regions.length; j++) {
+          const a = regions[i];
+          const b = regions[j];
+
+          const dx = a.centerX - b.centerX;
+          const dy = a.centerY - b.centerY;
+
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const minDist = 180;
+
+          if (dist < minDist && dist > 0.001) {
+            const force = (minDist - dist) * 0.002;
+
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+
+            for (const n of a.nodes) {
+              n.vx += fx;
+              n.vy += fy;
+            }
+
+            for (const n of b.nodes) {
+              n.vx -= fx;
+              n.vy -= fy;
+            }
+          }
         }
       }
 
-      /* click outside → reset */
-      focusRegion = null;
-      targetZoom = 1;
-      offset = { x: 0, y: 0 };
-    };
-
-    canvas.addEventListener("mousemove", onMove);
-    canvas.addEventListener("click", onClick);
-
-    /* =========================
-       DRAW LOOP
-    ========================= */
-    const draw = () => {
-      const c = center();
-
-      /* smooth zoom */
-      zoom += (targetZoom - zoom) * 0.08;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      /* =========================
-         REGION CENTERS
-      ========================= */
-      const regionCenters = Array.from({ length: REGION_COUNT }).map(
-        (_, r) => {
-          const nodesR = nodes.filter((n) => n.region === r);
-          return {
-            r,
-            x:
-              nodesR.reduce((s, n) => s + n.x, 0) /
-              (nodesR.length || 1),
-            y:
-              nodesR.reduce((s, n) => s + n.y, 0) /
-              (nodesR.length || 1),
-            nodes: nodesR,
-          };
-        }
-      );
-
-      /* =========================
-         PHYSICS
-      ========================= */
+      /* ---------------- NODE PHYSICS (UNCHANGED LOGIC) ---------------- */
       for (const n of nodes) {
         const dx = mouse.x - n.x;
         const dy = mouse.y - n.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
 
-        const dist = Math.hypot(dx, dy);
+        if (dist < 260) mouseOnNetwork = true;
+
         const influence = dist < 240 ? (1 - dist / 240) * 0.22 : 0;
 
         n.vx += dx * influence * 0.01;
@@ -412,20 +407,6 @@ function NeuralNetwork() {
 
         n.vx += (ox - n.x) * 0.015;
         n.vy += (oy - n.y) * 0.015;
-
-        /* REGION CONSTRAINT (keeps nodes inside their region) */
-        const r = regionCenters[n.region];
-        const dxr = n.x - r.x;
-        const dyr = n.y - r.y;
-        const drr = Math.hypot(dxr, dyr);
-
-        const maxR = 140;
-
-        if (drr > maxR) {
-          const f = (drr - maxR) * 0.02;
-          n.vx -= (dxr / drr) * f;
-          n.vy -= (dyr / drr) * f;
-        }
 
         n.vx *= 0.92;
         n.vy *= 0.92;
@@ -440,96 +421,172 @@ function NeuralNetwork() {
         }
       }
 
-      /* =========================
-         REGION DRAW
-      ========================= */
-      for (const r of regionCenters) {
-        const cx = r.x;
-        const cy = r.y;
-
-        const avg =
-          r.nodes.reduce(
-            (s, n) =>
-              s + Math.hypot(n.x - cx, n.y - cy),
-            0
-          ) / (r.nodes.length || 1);
-
-        const radius = avg + 40;
-
-        ctx.beginPath();
-        ctx.fillStyle = "rgba(255,0,60,0.04)";
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.strokeStyle = "rgba(255,140,140,0.25)";
-        ctx.lineWidth = 2;
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.stroke();
+      /* ---------------- SPIKES (UNCHANGED) ---------------- */
+      if (Math.random() < 0.010) {
+        const a = nodes[Math.floor(Math.random() * nodes.length)];
+        const b = nodes[Math.floor(Math.random() * nodes.length)];
+        if (a !== b) spawnSignal(a, b);
       }
 
-      /* =========================
-         LINKS (kNN unchanged)
-      ========================= */
-      const K = 4;
-
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i];
-
-        const neighbors = nodes
-          .filter((b) => b !== a)
-          .map((b) => ({
-            b,
-            d: (a.x - b.x) ** 2 + (a.y - b.y) ** 2,
-          }))
-          .sort((a, b) => a.d - b.d)
-          .slice(0, K);
-
-        for (const { b } of neighbors) {
-          ctx.strokeStyle = "rgba(76,201,240,0.08)";
-          ctx.beginPath();
-          ctx.moveTo(a.x * zoom + offset.x, a.y * zoom + offset.y);
-          ctx.lineTo(b.x * zoom + offset.x, b.y * zoom + offset.y);
-          ctx.stroke();
-        }
+      if (mouseOnNetwork && Math.random() < 0.025) {
+        const a = nodes[Math.floor(Math.random() * nodes.length)];
+        const b = nodes[Math.floor(Math.random() * nodes.length)];
+        if (a !== b) spawnSignal(a, b);
       }
 
-      /* =========================
-         NODES (clickable focus aware)
-      ========================= */
       for (const n of nodes) {
         const dx = mouse.x - n.x;
         const dy = mouse.y - n.y;
-        const dist = Math.hypot(dx, dy);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 28 && Math.random() < 0.08) {
+          const target = nodes[Math.floor(Math.random() * nodes.length)];
+          spawnSignal(n, target, n.active ? 1.2 : 1);
+        }
+      }
+
+      /* ---------------- UPDATE SIGNALS ---------------- */
+      for (let i = signals.length - 1; i >= 0; i--) {
+        const s = signals[i];
+        s.t += s.speed;
+        if (s.t >= 1) signals.splice(i, 1);
+      }
+
+      /* ---------------- UPDATE WAVES ---------------- */
+      for (let i = waves.length - 1; i >= 0; i--) {
+        const w = waves[i];
+        w.radius += w.speed;
+        if (w.radius > w.max) waves.splice(i, 1);
+      }
+
+      /* ---------------- WAVE EFFECT ---------------- */
+      for (const w of waves) {
+        for (const n of nodes) {
+          const dx = n.x - w.origin.x;
+          const dy = n.y - w.origin.y;
+
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const diff = Math.abs(dist - w.radius);
+
+          if (diff < 22) {
+            const pulse = (1 - diff / 22) * 0.3;
+
+            n.vx += (dx / (dist || 1)) * pulse * 0.1;
+            n.vy += (dy / (dist || 1)) * pulse * 0.1;
+
+            n.pulse = Math.min(1, n.pulse + pulse);
+            n.activity = Math.min(1, n.activity + pulse);
+          }
+        }
+      }
+
+      /* ---------------- DRAW REGIONS (NEW VISUAL LAYER) ---------------- */
+      for (const r of regions) {
+        ctx.beginPath();
+
+        const steps = 40;
+        const baseRadius = 140;
+
+        for (let i = 0; i <= steps; i++) {
+          const angle = (i / steps) * Math.PI * 2;
+
+          let radius = baseRadius;
+
+          // organic deformation
+          for (const n of r.nodes) {
+            const dx = Math.cos(angle) * radius + r.centerX - n.x;
+            const dy = Math.sin(angle) * radius + r.centerY - n.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+
+            radius += Math.sin(d * 0.01) * 3;
+          }
+
+          const x = r.centerX + Math.cos(angle) * radius;
+          const y = r.centerY + Math.sin(angle) * radius;
+
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+
+        ctx.closePath();
+
+        ctx.fillStyle =
+          selectedRegion === r.id
+            ? "rgba(255,80,80,0.08)"
+            : "rgba(255,80,80,0.03)";
+
+        ctx.strokeStyle = "rgba(255,140,140,0.25)";
+        ctx.lineWidth = 1;
+
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      /* ---------------- LINKS ---------------- */
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i];
+          const b = nodes[j];
+
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+
+          if (d < 190) {
+            ctx.strokeStyle = "rgba(76,201,240,0.10)";
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      /* ---------------- SIGNALS ---------------- */
+      for (const s of signals) {
+        const x = s.a.x + (s.b.x - s.a.x) * s.t;
+        const y = s.a.y + (s.b.y - s.a.y) * s.t;
+
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(120,200,255,0.8)";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "rgba(120,200,255,0.5)";
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      /* ---------------- NODES ---------------- */
+      for (const n of nodes) {
+        const dx = mouse.x - n.x;
+        const dy = mouse.y - n.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
 
         const near = dist < 110;
         const hover = dist < 28;
 
         let size = n.active ? 6 : 3;
-        if (near) size *= 1.3;
-        if (hover) size *= 2;
+
+        size *= 1 + n.pulse * 0.55;
+        if (near) size *= 1.35;
+        if (hover) size *= 2.0;
+
+        n.pulse *= 0.9;
+        n.activity *= 0.9;
 
         ctx.beginPath();
-        ctx.fillStyle = n.active
-          ? "rgba(76,201,240,0.85)"
-          : "rgba(255,255,255,0.35)";
 
-        ctx.arc(
-          n.x * zoom + offset.x,
-          n.y * zoom + offset.y,
-          size,
-          0,
-          Math.PI * 2
-        );
+        ctx.fillStyle = n.active
+          ? `rgba(76,201,240,${0.85 + n.activity * 0.15})`
+          : "rgba(255,255,255,0.38)";
+
+        ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
         ctx.fill();
 
-        if (focusRegion === n.region && n.active) {
-          ctx.fillStyle = "white";
-          ctx.fillText(
-            n.label,
-            n.x * zoom + offset.x + 8,
-            n.y * zoom + offset.y + 4
-          );
+        if (n.active && near) {
+          ctx.fillStyle = hover ? "white" : "rgba(255,255,255,0.7)";
+          ctx.font = hover ? "14px system-ui" : "11px system-ui";
+          ctx.fillText(n.label, n.x + 10, n.y + 4);
         }
       }
 
@@ -540,7 +597,6 @@ function NeuralNetwork() {
 
     return () => {
       canvas.removeEventListener("mousemove", onMove);
-      canvas.removeEventListener("click", onClick);
       window.removeEventListener("resize", resize);
     };
   }, []);

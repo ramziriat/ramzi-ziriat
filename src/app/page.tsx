@@ -242,6 +242,16 @@ function NeuralNetwork() {
       "Cosmology",
       "Philosophy",
       "Pilot",
+      "Propulsion",
+      "Orbital Mechanics",
+      "Quantum Gravity",
+      "Aviation Systems",
+      "Exoplanets",
+      "Spaceflight",
+      "Relativity",
+      "Neuroscience",
+      "Simulation",
+      "Exploration",
     ];
 
     const TOTAL = 115;

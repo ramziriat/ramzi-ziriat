@@ -133,12 +133,9 @@ useEffect(() => {
       <div className="viewport" style={{ transform: `translateY(-${page * 100}vh)` }}>
 
         {/* ---------------- PAGE 1: NEURAL NETWORK ---------------- */}
-        <section className="section">
-          <h1>RAMZI ZIRIAT</h1>
-
-          <div className="bigMetric">
-            <h2>{flightHours}h</h2>
-            <p>FLIGHT EXPERIENCE</p>
+        <section className="neuralSection">
+          <div className="titleOverlay">
+            <h1>RAMZI ZIRIAT</h1>
           </div>
 
           <NeuralNetwork />

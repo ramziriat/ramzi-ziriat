@@ -377,14 +377,14 @@ function NeuralNetwork() {
 
         const distC = Math.sqrt(dxC * dxC + dyC * dyC) || 1;
 
-        const clusterForce = 0.003; // 🔥 stabilisé (plus de collapse)
+        const clusterForce = 0.001; // 🔥 stabilisé (plus de collapse)
 
-        n.vx += (dxC / distC) * clusterForce * 8;
-        n.vy += (dyC / distC) * clusterForce * 8;
+        n.vx += (dxC / distC) * clusterForce * 6;
+        n.vy += (dyC / distC) * clusterForce * 6;
 
         // micro turbulence pour éviter rigidité
-        n.vx += Math.sin(n.angle * 2.0) * 0.002;
-        n.vy += Math.cos(n.angle * 2.0) * 0.002;
+        n.vx += Math.sin(n.angle * 2.0) * 0.003;
+        n.vy += Math.cos(n.angle * 2.0) * 0.003;
 
         /* ---------------- ORBIT ---------------- */
         n.vx *= 0.92;

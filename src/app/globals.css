@@ -11,7 +11,7 @@ html, body {
 .bg {
   position: fixed;
   inset: 0;
-  background-image: url("public/carte.jpg");
+  background-image: url("public/glacier.jpg");
   background-size: cover;
   background-position: center;
   filter: blur(14px) brightness(0.5);

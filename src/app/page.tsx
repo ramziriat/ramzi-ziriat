@@ -246,7 +246,7 @@ function NeuralNetwork() {
       y: canvas.height / 2,
     });
 
-    /* ---------------- BIGGER NETWORK (×2 SCALE) ---------------- */
+    /* ---------------- NETWORK INIT ---------------- */
     for (let i = 0; i < TOTAL; i++) {
       const angle = Math.random() * Math.PI * 2;
 
@@ -269,7 +269,7 @@ function NeuralNetwork() {
       });
     }
 
-    /* ---------------- SIGNAL SYSTEM ---------------- */
+    /* ---------------- SIGNALS ---------------- */
     const signals: any[] = [];
 
     const spawnSignal = (a: any, b: any) => {
@@ -277,19 +277,19 @@ function NeuralNetwork() {
         a,
         b,
         t: 0,
-        speed: 0.015 + Math.random() * 0.02,
+        speed: 0.014 + Math.random() * 0.018,
       });
     };
 
-    /* ---------------- WAVE SYSTEM ---------------- */
+    /* ---------------- WAVES ---------------- */
     const waves: any[] = [];
 
     const spawnWave = (origin: any) => {
       waves.push({
         origin,
         radius: 0,
-        speed: 2.4 + Math.random() * 1.0,
-        max: 280,
+        speed: 1.8 + Math.random() * 0.7,
+        max: 260,
       });
     };
 
@@ -314,8 +314,8 @@ function NeuralNetwork() {
 
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        /* ---------------- REDUCED MOUSE FORCE ---------------- */
-        const influence = dist < 220 ? (1 - dist / 220) * 0.25 : 0;
+        /* softer mouse influence */
+        const influence = dist < 240 ? (1 - dist / 240) * 0.22 : 0;
 
         n.vx += dx * influence * 0.01;
         n.vy += dy * influence * 0.01;
@@ -333,28 +333,40 @@ function NeuralNetwork() {
         n.y += n.vy;
 
         n.angle += 0.00055;
-
-        /* ---------------- WAVE TRIGGER (ACTIVATION) ---------------- */
-        if (n.active && dist < 170 && Math.random() < 0.04) {
-          spawnWave(n);
-        }
       }
 
-      /* ---------------- RANDOM SIGNALS ---------------- */
-      if (Math.random() < 0.006) {
+      /* ---------------- SPIKE CONTROL (BALANCED) ---------------- */
+
+      const mousePresent = mouse.x !== 0 || mouse.y !== 0;
+
+      /* ~1/sec base activity */
+      if (Math.random() < 0.012) {
         const a = nodes[Math.floor(Math.random() * nodes.length)];
         const b = nodes[Math.floor(Math.random() * nodes.length)];
         if (a !== b) spawnSignal(a, b);
       }
 
-      /* ---------------- UPDATE SIGNALS ---------------- */
+      /* mouse presence → 2–3/sec feeling */
+      if (mousePresent && Math.random() < 0.03) {
+        const a = nodes[Math.floor(Math.random() * nodes.length)];
+        const b = nodes[Math.floor(Math.random() * nodes.length)];
+        if (a !== b) spawnSignal(a, b);
+      }
+
+      /* waves triggered lightly by mouse */
+      if (mousePresent && Math.random() < 0.02) {
+        const n = nodes[Math.floor(Math.random() * nodes.length)];
+        spawnWave(n);
+      }
+
+      /* update signals */
       for (let i = signals.length - 1; i >= 0; i--) {
         const s = signals[i];
         s.t += s.speed;
         if (s.t >= 1) signals.splice(i, 1);
       }
 
-      /* ---------------- UPDATE WAVES ---------------- */
+      /* update waves */
       for (let i = waves.length - 1; i >= 0; i--) {
         const w = waves[i];
         w.radius += w.speed;
@@ -370,11 +382,11 @@ function NeuralNetwork() {
           const dist = Math.sqrt(dx * dx + dy * dy);
           const diff = Math.abs(dist - w.radius);
 
-          if (diff < 20) {
-            const pulse = (1 - diff / 20) * 0.6;
+          if (diff < 18) {
+            const pulse = (1 - diff / 18) * 0.45;
 
-            n.vx += (dx / (dist || 1)) * pulse * 0.35;
-            n.vy += (dy / (dist || 1)) * pulse * 0.35;
+            n.vx += (dx / (dist || 1)) * pulse * 0.25;
+            n.vy += (dy / (dist || 1)) * pulse * 0.25;
 
             n._activePulse = Math.min(1, n._activePulse + pulse);
           }
@@ -401,21 +413,16 @@ function NeuralNetwork() {
         }
       }
 
-      /* ---------------- SIGNAL RENDER ---------------- */
+      /* ---------------- SIGNALS ---------------- */
       for (const s of signals) {
-        const ax = s.a.x;
-        const ay = s.a.y;
-        const bx = s.b.x;
-        const by = s.b.y;
-
-        const x = ax + (bx - ax) * s.t;
-        const y = ay + (by - ay) * s.t;
+        const x = s.a.x + (s.b.x - s.a.x) * s.t;
+        const y = s.a.y + (s.b.y - s.a.y) * s.t;
 
         ctx.beginPath();
-        ctx.fillStyle = "rgba(120,200,255,0.9)";
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = "rgba(120,200,255,0.8)";
-        ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(120,200,255,0.85)";
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "rgba(120,200,255,0.6)";
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
       }
@@ -424,20 +431,18 @@ function NeuralNetwork() {
       for (const n of nodes) {
         const dx = mouse.x - n.x;
         const dy = mouse.y - n.y;
-
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        const near = dist < 100;
+        const near = dist < 110;
         const hover = dist < 28;
 
         let size = n.active ? 6 : 3;
+        size *= 1 + n._activePulse * 0.6;
 
-        size *= 1 + n._activePulse * 0.8;
+        if (near) size *= 1.4;
+        if (hover) size *= 2.0;
 
-        if (near) size *= 1.5;
-        if (hover) size *= 2.2;
-
-        n._activePulse *= 0.92;
+        n._activePulse *= 0.9;
 
         ctx.beginPath();
 
@@ -451,7 +456,7 @@ function NeuralNetwork() {
         if (n.active && near) {
           ctx.fillStyle = hover
             ? "white"
-            : "rgba(255,255,255,0.75)";
+            : "rgba(255,255,255,0.7)";
 
           ctx.font = hover ? "14px system-ui" : "11px system-ui";
           ctx.fillText(n.label, n.x + 10, n.y + 4);

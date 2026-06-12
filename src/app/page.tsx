@@ -210,6 +210,7 @@ useEffect(() => {
     </main>
   );
 }
+
 function NeuralNetwork() {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -264,6 +265,7 @@ function NeuralNetwork() {
         vy: 0,
         active: isActive,
         label: isActive ? activeLabels[i] : "",
+        _activePulse: 0,
       });
     }
 
@@ -275,7 +277,19 @@ function NeuralNetwork() {
         a,
         b,
         t: 0,
-        speed: 0.015 + Math.random() * 0.02, // rare + fast
+        speed: 0.015 + Math.random() * 0.02,
+      });
+    };
+
+    /* ---------------- WAVE SYSTEM ---------------- */
+    const waves: any[] = [];
+
+    const spawnWave = (origin: any) => {
+      waves.push({
+        origin,
+        radius: 0,
+        speed: 2.4 + Math.random() * 1.0,
+        max: 280,
       });
     };
 
@@ -300,7 +314,7 @@ function NeuralNetwork() {
 
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        /* ---------------- REDUCED MOUSE FORCE (÷2 CONFIRMED) ---------------- */
+        /* ---------------- REDUCED MOUSE FORCE ---------------- */
         const influence = dist < 220 ? (1 - dist / 220) * 0.25 : 0;
 
         n.vx += dx * influence * 0.01;
@@ -320,34 +334,51 @@ function NeuralNetwork() {
 
         n.angle += 0.00055;
 
-        /* ---------------- SIGNAL BOOST (LOCAL MOUSE) ---------------- */
-        if (dist < 140 && Math.random() < 0.03) {
-          const b = nodes[Math.floor(Math.random() * nodes.length)];
-          spawnSignal(n, b);
-        }
-
-        /* ---------------- SIGNAL BOOST (ACTIVE NODE HEAVY ACTIVITY) ---------------- */
-        if (n.active && dist < 160 && Math.random() < 0.08) {
-          for (let i = 0; i < 3; i++) {
-            const b = nodes[Math.floor(Math.random() * nodes.length)];
-            spawnSignal(n, b);
-          }
+        /* ---------------- WAVE TRIGGER (ACTIVATION) ---------------- */
+        if (n.active && dist < 170 && Math.random() < 0.04) {
+          spawnWave(n);
         }
       }
 
-      /* ---------------- GLOBAL RANDOM SIGNALS (RARE BRAIN SPIKES) ---------------- */
+      /* ---------------- RANDOM SIGNALS ---------------- */
       if (Math.random() < 0.006) {
         const a = nodes[Math.floor(Math.random() * nodes.length)];
         const b = nodes[Math.floor(Math.random() * nodes.length)];
         if (a !== b) spawnSignal(a, b);
       }
 
-      /* ---------------- SIGNAL UPDATE ---------------- */
+      /* ---------------- UPDATE SIGNALS ---------------- */
       for (let i = signals.length - 1; i >= 0; i--) {
         const s = signals[i];
         s.t += s.speed;
-
         if (s.t >= 1) signals.splice(i, 1);
+      }
+
+      /* ---------------- UPDATE WAVES ---------------- */
+      for (let i = waves.length - 1; i >= 0; i--) {
+        const w = waves[i];
+        w.radius += w.speed;
+        if (w.radius > w.max) waves.splice(i, 1);
+      }
+
+      /* ---------------- WAVE EFFECT ---------------- */
+      for (const w of waves) {
+        for (const n of nodes) {
+          const dx = n.x - w.origin.x;
+          const dy = n.y - w.origin.y;
+
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const diff = Math.abs(dist - w.radius);
+
+          if (diff < 20) {
+            const pulse = (1 - diff / 20) * 0.6;
+
+            n.vx += (dx / (dist || 1)) * pulse * 0.35;
+            n.vy += (dy / (dist || 1)) * pulse * 0.35;
+
+            n._activePulse = Math.min(1, n._activePulse + pulse);
+          }
+        }
       }
 
       /* ---------------- LINKS ---------------- */
@@ -370,7 +401,7 @@ function NeuralNetwork() {
         }
       }
 
-      /* ---------------- DRAW SIGNALS (BRAIN SPIKES) ---------------- */
+      /* ---------------- SIGNAL RENDER ---------------- */
       for (const s of signals) {
         const ax = s.a.x;
         const ay = s.a.y;
@@ -401,8 +432,12 @@ function NeuralNetwork() {
 
         let size = n.active ? 6 : 3;
 
-        if (near) size *= 1.6;
-        if (hover) size *= 2.3;
+        size *= 1 + n._activePulse * 0.8;
+
+        if (near) size *= 1.5;
+        if (hover) size *= 2.2;
+
+        n._activePulse *= 0.92;
 
         ctx.beginPath();
 

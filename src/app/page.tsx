@@ -244,7 +244,7 @@ function NeuralNetwork() {
       "Pilot",
     ];
 
-    const TOTAL = 155;
+    const TOTAL = 355;
     const nodes: any[] = [];
 
     const center = () => ({

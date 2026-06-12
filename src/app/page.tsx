@@ -227,13 +227,28 @@ function NeuralNetwork() {
 
     const mouse = { x: 0, y: 0 };
 
-    /* ---------------- CLUSTERS ---------------- */
+    /* ---------------- DOMAINS (5 ZONES CÉRÉBRALES) ---------------- */
     const clusters = [
-      "Cosmology",
-      "Astrophysics",
-      "Pilot",
-      "Aerospace",
-      "Philosophy",
+      {
+        name: "Cosmology",
+        active: ["CMB", "Dark Matter", "Dark Energy", "Inflation"],
+      },
+      {
+        name: "Astrophysics",
+        active: ["Pulsars", "Microlensing", "Spectroscopy"],
+      },
+      {
+        name: "Pilot",
+        active: ["IFR", "Navigation", "Flight Control"],
+      },
+      {
+        name: "Aerospace",
+        active: ["Propulsion", "Avionics", "Flight Dynamics"],
+      },
+      {
+        name: "Philosophy",
+        active: ["Epistemology", "Observation", "Uncertainty"],
+      },
     ];
 
     const TOTAL_ACTIVE = 20;
@@ -247,7 +262,10 @@ function NeuralNetwork() {
       y: canvas.height / 2,
     });
 
-    /* ---------------- INIT NODES ---------------- */
+    /* ---------------- REDUCED RADIUS (IMPORTANT FIX) ---------------- */
+    const BASE_RADIUS = Math.min(canvas.width, canvas.height) * 0.18;
+
+    /* ---------------- INIT ---------------- */
     for (let i = 0; i < TOTAL; i++) {
       const isActive = i < TOTAL_ACTIVE;
 
@@ -255,18 +273,25 @@ function NeuralNetwork() {
         ? i % clusters.length
         : Math.floor(Math.random() * clusters.length);
 
+      const cluster = clusters[clusterId];
+
       const angle = Math.random() * Math.PI * 2;
 
-      // clusters légèrement séparés mais overlap naturel
-      const baseRadius = 180 + clusterId * 25;
+      // 🔻 RÉSEAU PLUS COMPACT
       const radius =
-        (Math.pow(Math.random(), 1.6) * 140 + baseRadius) * 2.0;
+        (Math.pow(Math.random(), 1.4) * BASE_RADIUS + clusterId * 12) * 2.0;
+
+      const label =
+        isActive
+          ? cluster.active[i % cluster.active.length]
+          : "";
 
       nodes.push({
         id: i,
         active: isActive,
         clusterId,
-        label: isActive ? clusters[clusterId] : "",
+        clusterName: cluster.name,
+        label,
         angle,
         radius,
         x: 0,
@@ -278,14 +303,14 @@ function NeuralNetwork() {
       });
     }
 
-    /* ---------------- PLACE INITIAL ---------------- */
+    /* ---------------- PLACE INIT ---------------- */
     const c = center();
     for (const n of nodes) {
       n.x = c.x + Math.cos(n.angle) * n.radius;
       n.y = c.y + Math.sin(n.angle) * n.radius;
     }
 
-    /* ---------------- KNN LINKS (FIXED GRAPH) ---------------- */
+    /* ---------------- KNN LINKS ---------------- */
     const K = 4;
     const links: Map<number, number[]> = new Map();
 
@@ -310,13 +335,12 @@ function NeuralNetwork() {
     const signals: any[] = [];
     const waves: any[] = [];
 
-    const spawnSignal = (a: any, b: any, bias = 1) => {
+    const spawnSignal = (a: any, b: any) => {
       signals.push({
         a,
         b,
         t: 0,
-        speed: (0.012 + Math.random() * 0.016) * 0.7,
-        bias,
+        speed: 0.012 + Math.random() * 0.014,
       });
     };
 
@@ -324,8 +348,8 @@ function NeuralNetwork() {
       waves.push({
         origin,
         radius: 0,
-        speed: 1.4 + Math.random() * 0.4,
-        max: 260,
+        speed: 1.2,
+        max: 240,
       });
     };
 
@@ -350,98 +374,51 @@ function NeuralNetwork() {
         const dy = mouse.y - n.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < 280) mouseOnNetwork = true;
+        if (dist < 220) mouseOnNetwork = true;
 
-        const influence = dist < 260 ? (1 - dist / 260) * 0.18 : 0;
+        const influence = dist < 200 ? (1 - dist / 200) * 0.18 : 0;
 
         n.vx += dx * influence * 0.01;
         n.vy += dy * influence * 0.01;
 
+        // orbit stable
         const ox = c.x + Math.cos(n.angle) * n.radius;
         const oy = c.y + Math.sin(n.angle) * n.radius;
 
-        n.vx += (ox - n.x) * 0.015;
-        n.vy += (oy - n.y) * 0.015;
+        n.vx += (ox - n.x) * 0.02;
+        n.vy += (oy - n.y) * 0.02;
 
-        n.vx *= 0.92;
-        n.vy *= 0.92;
+        n.vx *= 0.9;
+        n.vy *= 0.9;
 
         n.x += n.vx;
         n.y += n.vy;
 
-        n.angle += 0.0005;
+        n.angle += 0.00045;
 
-        if (n.active && dist < 140 && Math.random() < 0.02) {
+        if (n.active && dist < 120 && Math.random() < 0.015) {
           spawnWave(n);
         }
       }
 
-      /* ---------------- SPIKES (ONLY ON LINKS) ---------------- */
-      if (Math.random() < 0.008) {
+      /* ---------------- SPIKES (LINK-ONLY) ---------------- */
+      if (Math.random() < 0.007) {
         const i = Math.floor(Math.random() * nodes.length);
-        const neighbors = links.get(i)!;
-
-        if (neighbors.length > 0) {
-          const j = neighbors[Math.floor(Math.random() * neighbors.length)];
-          spawnSignal(nodes[i], nodes[j], 1);
-        }
+        const j = links.get(i)![
+          Math.floor(Math.random() * links.get(i)!.length)
+        ];
+        spawnSignal(nodes[i], nodes[j]);
       }
 
-      if (mouseOnNetwork && Math.random() < 0.02) {
+      if (mouseOnNetwork && Math.random() < 0.018) {
         const i = Math.floor(Math.random() * nodes.length);
-        const neighbors = links.get(i)!;
-
-        const j = neighbors[Math.floor(Math.random() * neighbors.length)];
-        spawnSignal(nodes[i], nodes[j], 1.1);
+        const j = links.get(i)![
+          Math.floor(Math.random() * links.get(i)!.length)
+        ];
+        spawnSignal(nodes[i], nodes[j]);
       }
 
-      for (const n of nodes) {
-        const dx = mouse.x - n.x;
-        const dy = mouse.y - n.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < 28 && Math.random() < 0.05) {
-          const neighbors = links.get(n.id)!;
-          const j = neighbors[Math.floor(Math.random() * neighbors.length)];
-          spawnSignal(n, nodes[j], n.active ? 1.2 : 1);
-        }
-      }
-
-      /* ---------------- UPDATE SIGNALS ---------------- */
-      for (let i = signals.length - 1; i >= 0; i--) {
-        const s = signals[i];
-        s.t += s.speed;
-        if (s.t >= 1) signals.splice(i, 1);
-      }
-
-      /* ---------------- UPDATE WAVES ---------------- */
-      for (let i = waves.length - 1; i >= 0; i--) {
-        const w = waves[i];
-        w.radius += w.speed;
-        if (w.radius > w.max) waves.splice(i, 1);
-      }
-
-      /* ---------------- WAVE EFFECT ---------------- */
-      for (const w of waves) {
-        for (const n of nodes) {
-          const dx = n.x - w.origin.x;
-          const dy = n.y - w.origin.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const diff = Math.abs(dist - w.radius);
-
-          if (diff < 20) {
-            const pulse = (1 - diff / 20) * 0.25;
-
-            n.vx += (dx / (dist || 1)) * pulse * 0.08;
-            n.vy += (dy / (dist || 1)) * pulse * 0.08;
-
-            n.pulse = Math.min(1, n.pulse + pulse);
-            n.activity = Math.min(1, n.activity + pulse);
-          }
-        }
-      }
-
-      /* ---------------- LINKS DRAW ---------------- */
+      /* ---------------- LINKS ---------------- */
       for (let i = 0; i < nodes.length; i++) {
         const a = nodes[i];
         const neighbors = links.get(i)!;
@@ -451,14 +428,24 @@ function NeuralNetwork() {
 
           const dx = a.x - b.x;
           const dy = a.y - b.y;
-          const d = Math.sqrt(dx * dx + dy * dy);
 
-          ctx.strokeStyle = `rgba(76,201,240,${0.07})`;
+          ctx.strokeStyle = "rgba(76,201,240,0.06)";
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
           ctx.stroke();
         }
+      }
+
+      /* ---------------- SIGNALS ---------------- */
+      for (const s of signals) {
+        const x = s.a.x + (s.b.x - s.a.x) * s.t;
+        const y = s.a.y + (s.b.y - s.a.y) * s.t;
+
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(120,200,255,0.75)";
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       /* ---------------- NODES ---------------- */
@@ -467,30 +454,26 @@ function NeuralNetwork() {
         const dy = mouse.y - n.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        const near = dist < 120;
-        const hover = dist < 28;
+        const near = dist < 100;
+        const hover = dist < 26;
 
         let size = n.active ? 6 : 3;
 
-        size *= 1 + n.pulse * 0.5;
-        if (near) size *= 1.3;
+        if (near) size *= 1.25;
         if (hover) size *= 2;
-
-        n.pulse *= 0.9;
-        n.activity *= 0.9;
 
         ctx.beginPath();
         ctx.fillStyle = n.active
-          ? `rgba(76,201,240,${0.9})`
-          : `rgba(255,255,255,0.35)`;
+          ? "rgba(76,201,240,0.9)"
+          : "rgba(255,255,255,0.3)";
 
         ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
         ctx.fill();
 
         if (n.active && near) {
           ctx.fillStyle = hover ? "white" : "rgba(255,255,255,0.7)";
-          ctx.font = hover ? "14px system-ui" : "11px system-ui";
-          ctx.fillText(n.label, n.x + 10, n.y + 4);
+          ctx.font = "11px system-ui";
+          ctx.fillText(n.label, n.x + 8, n.y + 4);
         }
       }
 

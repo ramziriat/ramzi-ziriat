@@ -370,15 +370,25 @@ function NeuralNetwork() {
         n.vx += dxm * influence * 0.01;
         n.vy += dym * influence * 0.01;
 
-        /* ---------------- CLUSTER ATTRACTION (IMPORTANT FIX) ---------------- */
+        /* ---------------- CLUSTER BALANCE (FIX ANTI-COLLAPSE) ---------------- */
+
         const dxC = cluster.cx - n.x;
         const dyC = cluster.cy - n.y;
 
-        n.vx += dxC * 0.012;
-        n.vy += dyC * 0.012;
+        const distC = Math.sqrt(dxC * dxC + dyC * dyC) || 1;
 
-        n.vx *= 0.9;
-        n.vy *= 0.9;
+        const clusterForce = 0.003; // 🔥 stabilisé (plus de collapse)
+
+        n.vx += (dxC / distC) * clusterForce * 8;
+        n.vy += (dyC / distC) * clusterForce * 8;
+
+        // micro turbulence pour éviter rigidité
+        n.vx += Math.sin(n.angle * 2.0) * 0.002;
+        n.vy += Math.cos(n.angle * 2.0) * 0.002;
+
+        /* ---------------- ORBIT ---------------- */
+        n.vx *= 0.92;
+        n.vy *= 0.92;
 
         n.x += n.vx;
         n.y += n.vy;

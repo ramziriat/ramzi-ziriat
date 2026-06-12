@@ -268,6 +268,24 @@ function NeuralNetwork() {
       });
     }
 
+    const edges: { a: number; b: number }[] = [];
+
+    /* ---------------- FORCE CONNECTIVITY ---------------- */
+    for (let i = 1; i < nodes.length; i++) {
+      const parent = Math.floor(Math.random() * i);
+
+      edges.push({ a: i, b: parent });
+    }
+
+    /* ---------------- EXTRA LINKS (densification) ---------------- */
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        if (Math.random() < 0.05) {
+          edges.push({ a: i, b: j });
+        }
+      }
+    }
+
     /* ---------------- SYSTEMS ---------------- */
     const signals: any[] = [];
     const waves: any[] = [];
@@ -404,25 +422,33 @@ function NeuralNetwork() {
         }
       }
 
-      /* ---------------- LINKS ---------------- */
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = nodes[i];
-          const b = nodes[j];
+      for (const e of edges) {
+        const a = nodes[e.a];
+        const b = nodes[e.b];
 
-          const dx = a.x - b.x;
-          const dy = a.y - b.y;
-          const d = Math.sqrt(dx * dx + dy * dy);
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
 
-          if (d < 190) {
-            ctx.strokeStyle = "rgba(76,201,240,0.10)";
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.stroke();
-          }
-        }
+        const alpha = 0.06;
+
+        ctx.strokeStyle = `rgba(76,201,240,${alpha})`;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
       }
+
+      const getNeighbors = (id: number) => {
+        const res: number[] = [];
+
+        for (const e of edges) {
+          if (e.a === id) res.push(e.b);
+          if (e.b === id) res.push(e.a);
+        }
+
+        return res;
+      };
 
       /* ---------------- SIGNALS ---------------- */
       for (const s of signals) {

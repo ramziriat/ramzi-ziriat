@@ -216,10 +216,7 @@ function NeuralNetwork() {
     resize();
     window.addEventListener("resize", resize);
 
-    const mouse = {
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-    };
+    const mouse = { x: 0, y: 0 };
 
     const activeLabels = [
       "Aerospace",
@@ -229,28 +226,31 @@ function NeuralNetwork() {
       "Pilot",
     ];
 
-    const totalNodes = 25;
+    const TOTAL = 55; // +30 inactive added
+
+    const nodes: any[] = [];
 
     const center = () => ({
       x: canvas.width / 2,
       y: canvas.height / 2,
     });
 
-    const nodes: any[] = [];
-
-    for (let i = 0; i < totalNodes; i++) {
+    /* ---------------- GENERATION (DENSE + CENTER ALLOWED) ---------------- */
+    for (let i = 0; i < TOTAL; i++) {
       const angle = Math.random() * Math.PI * 2;
 
-      // structure plus grande
-      const radius = 180 + Math.random() * 120;
+      // compact distribution INCLUDING center proximity
+      const radius =
+        Math.pow(Math.random(), 1.6) * 220 + 40;
 
       const isActive = i < 5;
 
       nodes.push({
         angle,
         radius,
-        x: center().x + Math.cos(angle) * radius,
-        y: center().y + Math.sin(angle) * radius,
+        baseRadius: radius,
+        x: 0,
+        y: 0,
         vx: 0,
         vy: 0,
         active: isActive,
@@ -260,7 +260,6 @@ function NeuralNetwork() {
 
     const onMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
     };
@@ -272,30 +271,33 @@ function NeuralNetwork() {
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      /* ---------- PHYSICS ---------- */
-
+      /* ---------------- UPDATE PHYSICS ---------------- */
       for (const n of nodes) {
         const dx = mouse.x - n.x;
         const dy = mouse.y - n.y;
 
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // interaction locale uniquement
-        if (dist < 150) {
-          const force = (1 - dist / 150) * 0.12;
+        /* ---------------- CLUSTER INFLUENCE ---------------- */
+        const influence = dist < 220 ? (1 - dist / 220) : 0;
 
-          n.vx += dx * force * 0.01;
-          n.vy += dy * force * 0.01;
-        }
+        // soft attraction (cluster effect)
+        n.vx += dx * influence * 0.012;
+        n.vy += dy * influence * 0.012;
 
-        const targetX =
-          c.x + Math.cos(n.angle) * n.radius;
+        /* ---------------- SLIGHT LIVING DRIFT ---------------- */
+        const driftX = Math.sin(n.angle + Date.now() * 0.0002) * 0.05;
+        const driftY = Math.cos(n.angle + Date.now() * 0.0002) * 0.05;
 
-        const targetY =
-          c.y + Math.sin(n.angle) * n.radius;
+        n.vx += driftX;
+        n.vy += driftY;
 
-        n.vx += (targetX - n.x) * 0.02;
-        n.vy += (targetY - n.y) * 0.02;
+        /* ---------------- ORBIT ---------------- */
+        const ox = c.x + Math.cos(n.angle) * n.radius;
+        const oy = c.y + Math.sin(n.angle) * n.radius;
+
+        n.vx += (ox - n.x) * 0.018;
+        n.vy += (oy - n.y) * 0.018;
 
         n.vx *= 0.92;
         n.vy *= 0.92;
@@ -303,11 +305,10 @@ function NeuralNetwork() {
         n.x += n.vx;
         n.y += n.vy;
 
-        n.angle += 0.0005;
+        n.angle += 0.0006;
       }
 
-      /* ---------- LINKS ---------- */
-
+      /* ---------------- LINKS (ELASTIC FEEL) ---------------- */
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i];
@@ -315,37 +316,42 @@ function NeuralNetwork() {
 
           const dx = a.x - b.x;
           const dy = a.y - b.y;
-
           const d = Math.sqrt(dx * dx + dy * dy);
 
           if (d < 170) {
-            ctx.strokeStyle = "rgba(76,201,240,0.08)";
+            const alpha = 0.08 * (1 - d / 170);
+
+            ctx.strokeStyle = `rgba(76,201,240,${alpha})`;
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
+
+            // slight curve = living network feel
+            const mx = (a.x + b.x) / 2 + Math.sin(d * 0.01) * 4;
+            const my = (a.y + b.y) / 2 + Math.cos(d * 0.01) * 4;
+
+            ctx.quadraticCurveTo(mx, my, b.x, b.y);
             ctx.stroke();
           }
         }
       }
 
-      /* ---------- NODES ---------- */
-
+      /* ---------------- NODES ---------------- */
       for (const n of nodes) {
         const dx = mouse.x - n.x;
         const dy = mouse.y - n.y;
 
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        const hover = dist < 70;
+        const near = dist < 90;
+        const hover = dist < 25;
 
-        const size = n.active
-          ? hover
-            ? 11
-            : 6
-          : hover
-          ? 5
-          : 3;
+        /* ---------------- SCALE SYSTEM ---------------- */
+        let size = n.active ? 6 : 3;
 
+        if (near) size *= 1.6;
+        if (hover) size *= 2.2;
+
+        /* ---------------- DRAW NODE ---------------- */
         ctx.beginPath();
 
         ctx.fillStyle = n.active
@@ -355,10 +361,14 @@ function NeuralNetwork() {
         ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
         ctx.fill();
 
-        if (n.active && hover) {
-          ctx.fillStyle = "white";
-          ctx.font = "14px system-ui";
-          ctx.fillText(n.label, n.x + 14, n.y + 4);
+        /* ---------------- LABEL SYSTEM ---------------- */
+        if (n.active && near) {
+          ctx.fillStyle = hover
+            ? "white"
+            : "rgba(255,255,255,0.7)";
+
+          ctx.font = hover ? "14px system-ui" : "11px system-ui";
+          ctx.fillText(n.label, n.x + 10, n.y + 4);
         }
       }
 

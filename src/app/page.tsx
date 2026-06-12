@@ -396,7 +396,7 @@ function NeuralNetwork() {
           const diff = Math.abs(dist - w.radius);
 
           if (diff < 22) {
-            const pulse = (1 - diff / 22) * 0.55; // slightly more visible
+            const pulse = (1 - diff / 22) * 0.3; // slightly more visible
 
             n.vx += (dx / (dist || 1)) * pulse * 0.25;
             n.vy += (dy / (dist || 1)) * pulse * 0.25;

@@ -13,12 +13,22 @@ const missions = [
 ];
 
 /* ---------------- NEURAL NODES ---------------- */
-const activeNodes = [
+const activeLabels = [
   "Aerospace",
   "Astrophysics",
   "Cosmology",
   "Philosophy",
-  "Pilot training",
+  "Pilot",
+  "Propulsion",
+  "Orbital Mechanics",
+  "Quantum Gravity",
+  "Aviation Systems",
+  "Exoplanets",
+  "Spaceflight",
+  "Relativity",
+  "Neuroscience",
+  "Simulation",
+  "Exploration",
 ];
 
 const inactiveNodes = Array.from({ length: 20 }, (_, i) => `node-${i}`);
@@ -234,7 +244,7 @@ function NeuralNetwork() {
       "Pilot",
     ];
 
-    const TOTAL = 55;
+    const TOTAL = 115;
     const nodes: any[] = [];
 
     const center = () => ({
@@ -249,7 +259,7 @@ function NeuralNetwork() {
       const radius =
         (Math.pow(Math.random(), 1.6) * 220 + 40) * 2.0;
 
-      const isActive = i < 5;
+      const isActive = i < 15;
 
       nodes.push({
         id: i,

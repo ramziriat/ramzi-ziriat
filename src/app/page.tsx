@@ -18,7 +18,7 @@ const ACTIVE_LABELS = [
   "Aviation Systems", "Exoplanets", "Spaceflight", "Relativity",
 ];
 
-const TOTAL_NODES    = 55;
+const TOTAL_NODES    = 155;
 const REGION_COUNT   = 8;
 const GRID_RES       = 10;   // px per Voronoi cell — bigger = faster
 const VORONOI_EVERY  = 3;    // recompute grid every N frames

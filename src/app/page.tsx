@@ -211,6 +211,7 @@ useEffect(() => {
   );
 }
 
+
 function NeuralNetwork() {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -246,7 +247,7 @@ function NeuralNetwork() {
       y: canvas.height / 2,
     });
 
-    /* ---------------- INIT NETWORK ---------------- */
+    /* ---------------- INIT ---------------- */
     for (let i = 0; i < TOTAL; i++) {
       const angle = Math.random() * Math.PI * 2;
 
@@ -270,28 +271,26 @@ function NeuralNetwork() {
       });
     }
 
-    /* ---------------- SIGNALS ---------------- */
+    /* ---------------- SYSTEMS ---------------- */
     const signals: any[] = [];
+    const waves: any[] = [];
 
     const spawnSignal = (a: any, b: any, bias = 1) => {
       signals.push({
         a,
         b,
         t: 0,
-        speed: (0.012 + Math.random() * 0.018) * bias,
+        speed: (0.012 + Math.random() * 0.016) * bias * 0.7, // 🔻 slower propagation
         bias,
       });
     };
-
-    /* ---------------- WAVES ---------------- */
-    const waves: any[] = [];
 
     const spawnWave = (origin: any) => {
       waves.push({
         origin,
         radius: 0,
-        speed: 1.9 + Math.random() * 0.8,
-        max: 260,
+        speed: 1.6 + Math.random() * 0.6,
+        max: 270,
       });
     };
 
@@ -338,42 +337,37 @@ function NeuralNetwork() {
 
         n.angle += 0.00055;
 
-        /* ---------------- WAVE TRIGGER ---------------- */
-        if (n.active && dist < 160 && Math.random() < 0.04) {
+        if (n.active && dist < 160 && Math.random() < 0.03) {
           spawnWave(n);
         }
       }
 
-      /* ---------------- SPIKE SYSTEM ---------------- */
+      /* ---------------- SPIKES (BALANCED DOWN) ---------------- */
 
-      // BASE ~1/sec
-      if (Math.random() < 0.012) {
+      // base ~1/sec
+      if (Math.random() < 0.010) {
         const a = nodes[Math.floor(Math.random() * nodes.length)];
         const b = nodes[Math.floor(Math.random() * nodes.length)];
-        if (a !== b) spawnSignal(a, b, 1);
+        if (a !== b) spawnSignal(a, b);
       }
 
-      // MOUSE ON NETWORK ~4/sec
-      if (mouseOnNetwork && Math.random() < 0.03) {
+      // mouse network ~4/sec
+      if (mouseOnNetwork && Math.random() < 0.025) {
         const a = nodes[Math.floor(Math.random() * nodes.length)];
         const b = nodes[Math.floor(Math.random() * nodes.length)];
-        if (a !== b) spawnSignal(a, b, 1.2);
+        if (a !== b) spawnSignal(a, b);
       }
 
-      // MOUSE ON NODE (~6/sec bias from active node)
+      // 🔻 REDUCED spikes on node hover (was too much)
       for (const n of nodes) {
         const dx = mouse.x - n.x;
         const dy = mouse.y - n.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist < 28) {
-          for (let i = 0; i < 2; i++) {
-            const target =
-              n.active
-                ? nodes[Math.floor(Math.random() * nodes.length)]
-                : nodes[Math.floor(Math.random() * nodes.length)];
-
-            spawnSignal(n, target, 1.4);
+          if (Math.random() < 0.08) {
+            const target = nodes[Math.floor(Math.random() * nodes.length)];
+            spawnSignal(n, target, n.active ? 1.2 : 1);
           }
         }
       }
@@ -392,7 +386,7 @@ function NeuralNetwork() {
         if (w.radius > w.max) waves.splice(i, 1);
       }
 
-      /* ---------------- WAVE EFFECT (REDUCED ×0.8) ---------------- */
+      /* ---------------- WAVE EFFECT (slightly stronger visibility) ---------------- */
       for (const w of waves) {
         for (const n of nodes) {
           const dx = n.x - w.origin.x;
@@ -401,21 +395,19 @@ function NeuralNetwork() {
           const dist = Math.sqrt(dx * dx + dy * dy);
           const diff = Math.abs(dist - w.radius);
 
-          if (diff < 20) {
-            const pulse = (1 - diff / 20) * 0.48; // (was higher → ×0.8)
+          if (diff < 22) {
+            const pulse = (1 - diff / 22) * 0.55; // slightly more visible
 
-            n.vx += (dx / (dist || 1)) * pulse * 0.22;
-            n.vy += (dy / (dist || 1)) * pulse * 0.22;
+            n.vx += (dx / (dist || 1)) * pulse * 0.25;
+            n.vy += (dy / (dist || 1)) * pulse * 0.25;
 
             n.pulse = Math.min(1, n.pulse + pulse);
-
-            // COLOR PROPAGATION EFFECT
             n.activity = Math.min(1, n.activity + pulse);
           }
         }
       }
 
-      /* ---------------- LINKS (slightly more visible) ---------------- */
+      /* ---------------- LINKS ---------------- */
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i];
@@ -426,7 +418,7 @@ function NeuralNetwork() {
           const d = Math.sqrt(dx * dx + dy * dy);
 
           if (d < 190) {
-            ctx.strokeStyle = "rgba(76,201,240,0.09)"; // slightly stronger
+            ctx.strokeStyle = "rgba(76,201,240,0.10)";
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
@@ -441,9 +433,9 @@ function NeuralNetwork() {
         const y = s.a.y + (s.b.y - s.a.y) * s.t;
 
         ctx.beginPath();
-        ctx.fillStyle = "rgba(120,200,255,0.85)";
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = "rgba(120,200,255,0.6)";
+        ctx.fillStyle = "rgba(120,200,255,0.8)";
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = "rgba(120,200,255,0.5)";
         ctx.arc(x, y, 2, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
@@ -460,30 +452,27 @@ function NeuralNetwork() {
 
         let size = n.active ? 6 : 3;
 
-        size *= 1 + n.pulse * 0.6;
+        size *= 1 + n.pulse * 0.55;
 
-        if (near) size *= 1.4;
-        if (hover) size *= 2.1;
+        if (near) size *= 1.35;
+        if (hover) size *= 2.0;
 
         n.pulse *= 0.9;
-        n.activity *= 0.92;
+        n.activity *= 0.9;
 
         ctx.beginPath();
 
-        // INACTIVE slightly more visible
-        const baseAlpha = n.active ? 1 : 0.35;
-
         ctx.fillStyle = n.active
-          ? `rgba(76,201,240,${0.85 + n.activity * 0.2})`
-          : `rgba(255,255,255,${baseAlpha})`;
+          ? `rgba(76,201,240,${0.85 + n.activity * 0.15})`
+          : `rgba(255,255,255,0.38)`; // slightly more visible
 
         ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
         ctx.fill();
 
-        // depth hint (very subtle)
-        ctx.globalAlpha = 0.04;
+        /* ---------------- subtle depth (slightly more perspective) ---------------- */
+        ctx.globalAlpha = 0.05;
         ctx.beginPath();
-        ctx.arc(n.x + 1.2, n.y + 1.2, size * 1.4, 0, Math.PI * 2);
+        ctx.arc(n.x + 1.5, n.y + 1.5, size * 1.35, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
 

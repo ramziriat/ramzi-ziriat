@@ -32,7 +32,38 @@ export default function Home() {
   const [hover, setHover] = useState<number | null>(null);
   const [boot, setBoot] = useState(true);
   const [utc, setUtc] = useState("");
-  }
+
+const [flightHours, setFlightHours] = useState(0);
+
+useEffect(() => {
+  const target = 42;
+  const start = performance.now();
+
+  let raf: number;
+
+  const animate = (t: number) => {
+    const p = Math.min((t - start) / 2500, 1);
+
+    // easing type "cosine cinematic"
+    const eased = 1 - Math.pow(1 - p, 4);
+
+    const value = eased * target;
+
+    // IMPORTANT: keep decimals for smooth visual flow
+    setFlightHours(value);
+
+    if (p < 1) {
+      raf = requestAnimationFrame(animate);
+    } else {
+      // lock exact value at end
+      setFlightHours(target);
+    }
+  };
+
+  raf = requestAnimationFrame(animate);
+
+  return () => cancelAnimationFrame(raf);
+}, []);
 
   /* ---------------- BOOT ---------------- */
   useEffect(() => {

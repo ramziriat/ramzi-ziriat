@@ -398,8 +398,8 @@ function NeuralNetwork() {
           if (diff < 22) {
             const pulse = (1 - diff / 22) * 0.3; // slightly more visible
 
-            n.vx += (dx / (dist || 1)) * pulse * 0.25;
-            n.vy += (dy / (dist || 1)) * pulse * 0.25;
+            n.vx += (dx / (dist || 1)) * pulse * 0.1;
+            n.vy += (dy / (dist || 1)) * pulse * 0.1;
 
             n.pulse = Math.min(1, n.pulse + pulse);
             n.activity = Math.min(1, n.activity + pulse);

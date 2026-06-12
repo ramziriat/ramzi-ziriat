@@ -263,16 +263,6 @@ function NeuralNetwork() {
       "Pilot",
     ];
 
-    const clusterCenters = CLUSTERS.map((_, i) => {
-      const angle = (i / CLUSTERS.length) * Math.PI * 2;
-      const radius = 180;
-
-      return {
-        x: resizeCenter().x + Math.cos(angle) * radius,
-        y: resizeCenter().y + Math.sin(angle) * radius,
-      };
-    });
-
     function resizeCenter() {
       return {
         x: canvas.width / 2,
@@ -280,19 +270,26 @@ function NeuralNetwork() {
       };
     }
 
+    const clusterCenters = CLUSTERS.map((_, i) => {
+      const angle = (i / CLUSTERS.length) * Math.PI * 2;
+      const radius = 180;
+      const c = resizeCenter();
+
+      return {
+        x: c.x + Math.cos(angle) * radius,
+        y: c.y + Math.sin(angle) * radius,
+      };
+    });
+
     const nodes: any[] = [];
 
-    const TOTAL = 115;
-    const ACTIVE_PER_CLUSTER = 3; // 5 clusters → 15 actifs
+    const ACTIVE_PER_CLUSTER = 3;
 
-    /* =========================================================
-       🔥 ONLY MODIFIED PART: CLUSTERED INIT
-    ========================================================= */
-
+    /* ---------------- INIT (UNCHANGED STRUCTURE) ---------------- */
     for (let c = 0; c < CLUSTERS.length; c++) {
       const base = clusterCenters[c];
 
-      /* ---------------- ACTIVE NODES ---------------- */
+      // ACTIVE
       for (let i = 0; i < ACTIVE_PER_CLUSTER; i++) {
         const angle = Math.random() * Math.PI * 2;
         const r = 25 + Math.random() * 45;
@@ -313,7 +310,7 @@ function NeuralNetwork() {
         });
       }
 
-      /* ---------------- INACTIVE NODES ---------------- */
+      // INACTIVE
       const INACTIVE = 20;
 
       for (let i = 0; i < INACTIVE; i++) {
@@ -370,7 +367,7 @@ function NeuralNetwork() {
     canvas.addEventListener("mousemove", onMove);
 
     const draw = () => {
-      const c = center();
+      const c = resizeCenter();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       let mouseOnNetwork = false;
@@ -466,30 +463,45 @@ function NeuralNetwork() {
       }
 
       /* =========================================================
-         🔥 LINKS FIXED: K-NEAREST NEIGHBORS (NO LONG LINES)
-      ========================================================= */
+         LINKS FIXED: CLUSTER-AWARE LOCAL GRAPH
+      ========================================================== */
 
-      const K = 4;
+      const LOCAL_RADIUS = 140;
+      const EXTRA_CLUSTER_WEIGHT = 1.8;
 
       for (let i = 0; i < nodes.length; i++) {
         const a = nodes[i];
 
-        const neighbors = nodes
-          .filter((b) => b !== a)
-          .map((b) => {
-            const dx = a.x - b.x;
-            const dy = a.y - b.y;
-            return { b, d: dx * dx + dy * dy };
-          })
-          .sort((x, y) => x.d - y.d)
-          .slice(0, K);
+        const candidates: { b: any; d: number; weight: number }[] = [];
 
-        for (const { b } of neighbors) {
+        for (let j = 0; j < nodes.length; j++) {
+          if (i === j) continue;
+
+          const b = nodes[j];
           const dx = a.x - b.x;
           const dy = a.y - b.y;
           const d = Math.sqrt(dx * dx + dy * dy);
 
-          ctx.strokeStyle = `rgba(76,201,240,${0.06 + (1 - d / 300) * 0.05})`;
+          if (d > LOCAL_RADIUS * 2.2) continue;
+
+          let weight = 1;
+          if (a.cluster === b.cluster) weight *= EXTRA_CLUSTER_WEIGHT;
+
+          candidates.push({ b, d, weight });
+        }
+
+        candidates.sort((x, y) => (x.d / x.weight) - (y.d / y.weight));
+
+        const K = 3;
+
+        for (let k = 0; k < Math.min(K, candidates.length); k++) {
+          const { b, d } = candidates[k];
+
+          const opacity =
+            0.05 + (1 - d / (LOCAL_RADIUS * 2)) * 0.08;
+
+          ctx.strokeStyle = `rgba(76,201,240,${opacity})`;
+          ctx.lineWidth = a.cluster === b.cluster ? 1.1 : 0.7;
 
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
@@ -531,7 +543,6 @@ function NeuralNetwork() {
         n.activity *= 0.9;
 
         ctx.beginPath();
-
         ctx.fillStyle = n.active
           ? `rgba(76,201,240,${0.85 + n.activity * 0.15})`
           : `rgba(255,255,255,0.38)`;

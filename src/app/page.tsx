@@ -365,28 +365,44 @@ function NeuralNetwork() {
 
         if (distM < 220) mouseOnNetwork = true;
 
-        const influence = distM < 200 ? (1 - distM / 200) * 0.16 : 0;
+        /* ---------------- REDUCED MOUSE FORCE (FIX COLLAPSE) ---------------- */
+        const influence =
+          distM < 140
+            ? Math.pow(1 - distM / 140, 2) * 0.06
+            : 0;
 
-        n.vx += dxm * influence * 0.01;
-        n.vy += dym * influence * 0.01;
+        n.vx += dxm * influence * 0.003;
+        n.vy += dym * influence * 0.003;
 
-        /* ---------------- CLUSTER BALANCE (FIX ANTI-COLLAPSE) ---------------- */
-
+        /* ---------------- CLUSTER BALANCE ---------------- */
         const dxC = cluster.cx - n.x;
         const dyC = cluster.cy - n.y;
-
         const distC = Math.sqrt(dxC * dxC + dyC * dyC) || 1;
 
-        const clusterForce = 0.0001; // 🔥 stabilisé (plus de collapse)
+        const clusterForce = 0.0001;
 
         n.vx += (dxC / distC) * clusterForce * 6;
         n.vy += (dyC / distC) * clusterForce * 6;
 
-        // micro turbulence pour éviter rigidité
-        n.vx += Math.sin(n.angle * 2.0) * 0.003;
-        n.vy += Math.cos(n.angle * 2.0) * 0.003;
+        /* ---------------- 🔥 NODE REPULSION (CRITICAL FIX) ---------------- */
+        for (const other of nodes) {
+          if (other === n) continue;
 
-        /* ---------------- ORBIT ---------------- */
+          const rx = n.x - other.x;
+          const ry = n.y - other.y;
+
+          const d2 = rx * rx + ry * ry;
+
+          if (d2 < 1000) {
+            const d = Math.sqrt(d2) || 1;
+            const force = (32 - d) * 0.01;
+
+            n.vx += (rx / d) * force;
+            n.vy += (ry / d) * force;
+          }
+        }
+
+        /* ---------------- ORBIT STABILITY ---------------- */
         n.vx *= 0.92;
         n.vy *= 0.92;
 
@@ -400,7 +416,7 @@ function NeuralNetwork() {
         }
       }
 
-      /* ---------------- SPIKES (LINK ONLY) ---------------- */
+      /* ---------------- SPIKES ---------------- */
       if (Math.random() < 0.006) {
         const i = Math.floor(Math.random() * nodes.length);
         const neigh = links.get(i)!;

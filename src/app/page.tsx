@@ -161,7 +161,6 @@ function NeuralNetwork() {
     const offFill    = document.createElement("canvas");
     const offFillCtx = offFill.getContext("2d")!;
 
-    // Smooth fill canvas (2× grid for bilinear feel)
     const FILL_RES = GRID_RES * 2;
 
     const resize = () => {
@@ -170,77 +169,63 @@ function NeuralNetwork() {
       canvas.height = r.height;
       offFill.width  = Math.ceil(r.width  / FILL_RES);
       offFill.height = Math.ceil(r.height / FILL_RES);
+      // Reposition node home positions when canvas resizes
+      nodes.forEach(n => {
+        const c = center();
+        n.homeX = c.x + Math.cos(n.regionAngle) * eRX() * 0.45 + Math.cos(n.spreadAngle) * n.spreadR;
+        n.homeY = c.y + Math.sin(n.regionAngle) * eRY() * 0.45 + Math.sin(n.spreadAngle) * n.spreadR;
+      });
     };
-    resize();
-    window.addEventListener("resize", resize);
 
-    const mouse = { x: -9999, y: -9999 };
+    const mouse  = { x: -9999, y: -9999 };
     const center = () => ({ x: canvas.width / 2, y: canvas.height / 2 });
+    const eRX    = () => Math.min(canvas.width  * 0.42, 480);
+    const eRY    = () => Math.min(canvas.height * 0.40, 380);
 
-    /* Ellipse radii — fits page */
-    const eRX = () => Math.min(canvas.width  * 0.42, 480);
-    const eRY = () => Math.min(canvas.height * 0.40, 380);
-
-    /* Point-in-ellipse test */
     const inEllipse = (px: number, py: number, cx: number, cy: number, rx: number, ry: number) => {
       const dx = (px - cx) / rx, dy = (py - cy) / ry;
       return dx*dx + dy*dy <= 1;
     };
 
-    /* ---- Build nodes ---- */
+    /* ---- Build nodes (NO canvas-size dependency at init) ---- */
+    // Store angles + distances; compute world positions each frame from live center
     const nodes: any[] = [];
 
     REGION_DEFS.forEach((rDef, rid) => {
-      // Place region center in ellipse at evenly-spaced angle
       const regionAngle = (rid / REGION_COUNT) * Math.PI * 2;
-      const cx = () => center().x + Math.cos(regionAngle) * eRX() * 0.45;
-      const cy = () => center().y + Math.sin(regionAngle) * eRY() * 0.45;
 
-      // Active (domain) nodes — clustered near region center
       rDef.labels.forEach((label, li) => {
         const spreadAngle = (li / rDef.labels.length) * Math.PI * 2 + regionAngle;
-        const spreadR = 60 + Math.random() * 60;
+        const spreadR = 55 + Math.random() * 65;
         nodes.push({
-          id: nodes.length,
-          regionId: rid,
-          active: true,
-          label,
-          baseX: cx() + Math.cos(spreadAngle) * spreadR,
-          baseY: cy() + Math.sin(spreadAngle) * spreadR,
+          id: nodes.length, regionId: rid, active: true, label,
+          regionAngle, spreadAngle, spreadR,
+          homeX: 0, homeY: 0,           // set after first resize
           x: 0, y: 0, vx: 0, vy: 0,
-          angle: spreadAngle,
-          orbitR: spreadR,
-          orbitSpeed: 0.0003 + Math.random() * 0.0003,
           orbitPhase: Math.random() * Math.PI * 2,
+          orbitSpeed: 0.004 + Math.random() * 0.004, // visible speed
+          orbitAmp: 8 + Math.random() * 14,           // small orbit wobble
           pulse: 0, activity: 0,
         });
       });
 
-      // Inactive background nodes — scattered wider in region
       for (let i = 0; i < INACTIVE_PER_REGION; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const r = 20 + Math.random() * 110;
+        const spreadAngle = Math.random() * Math.PI * 2;
+        const spreadR = 20 + Math.random() * 100;
         nodes.push({
-          id: nodes.length,
-          regionId: rid,
-          active: false,
-          label: "",
-          baseX: cx() + Math.cos(a) * r,
-          baseY: cy() + Math.sin(a) * r,
+          id: nodes.length, regionId: rid, active: false, label: "",
+          regionAngle, spreadAngle, spreadR,
+          homeX: 0, homeY: 0,
           x: 0, y: 0, vx: 0, vy: 0,
-          angle: a,
-          orbitR: r,
-          orbitSpeed: 0.0002 + Math.random() * 0.0002,
           orbitPhase: Math.random() * Math.PI * 2,
+          orbitSpeed: 0.002 + Math.random() * 0.003,
+          orbitAmp: 5 + Math.random() * 10,
           pulse: 0, activity: 0,
         });
       }
     });
 
-    // Initialize positions
-    nodes.forEach(n => { n.x = n.baseX; n.y = n.baseY; });
-
-    /* ---- Region seed positions (centroids, recomputed per frame) ---- */
+    /* ---- Regions ---- */
     const regions = REGION_DEFS.map((rDef, id) => ({
       id, hue: rDef.hue, name: rDef.name,
       seed: { x: 0, y: 0 },
@@ -249,21 +234,19 @@ function NeuralNetwork() {
     }));
 
     /* ---- Voronoi grid ---- */
-    let gW = offFill.width, gH = offFill.height;
-    let grid = new Uint8Array(gW * gH);
-    let fillImageData = offFillCtx.createImageData(gW, gH);
+    let gW = 1, gH = 1;
+    let grid = new Uint8Array(1);
+    let fillImageData = offFillCtx.createImageData(1, 1);
 
     const updateGrid = () => {
       gW = offFill.width; gH = offFill.height;
+      if (gW < 1 || gH < 1) return;
       if (grid.length !== gW * gH) {
         grid = new Uint8Array(gW * gH);
         fillImageData = offFillCtx.createImageData(gW, gH);
       }
+      const c = center(); const rx = eRX(), ry = eRY();
 
-      const c = center();
-      const rx = eRX(), ry = eRY();
-
-      // Update seeds
       for (const r of regions) {
         let sx = 0, sy = 0;
         for (const nid of r.nodeIds) { sx += nodes[nid].x; sy += nodes[nid].y; }
@@ -271,209 +254,162 @@ function NeuralNetwork() {
         r.seed.x = sx / n; r.seed.y = sy / n;
       }
 
-      // Fill grid
       for (let gy = 0; gy < gH; gy++) {
         for (let gx = 0; gx < gW; gx++) {
           const px = gx * FILL_RES + FILL_RES / 2;
           const py = gy * FILL_RES + FILL_RES / 2;
-
-          if (!inEllipse(px, py, c.x, c.y, rx, ry)) {
-            grid[gy * gW + gx] = 255;
-            continue;
-          }
-
+          if (!inEllipse(px, py, c.x, c.y, rx, ry)) { grid[gy*gW+gx] = 255; continue; }
           let best = Infinity, bestId = 0;
           for (const r of regions) {
             const dx = px - r.seed.x, dy = py - r.seed.y;
             const d2 = dx*dx + dy*dy;
             if (d2 < best) { best = d2; bestId = r.id; }
           }
-          grid[gy * gW + gx] = bestId;
+          grid[gy*gW+gx] = bestId;
         }
       }
     };
 
-    /* ---- Smooth Voronoi fill via distance-weighted color blend ---- */
     const drawFill = () => {
       const W = gW, H = gH;
+      if (W < 1 || H < 1) return;
       const d = fillImageData.data;
-      const c = center();
-      const rx = eRX(), ry = eRY();
+      const c = center(); const rx = eRX(), ry = eRY();
 
       for (let i = 0; i < W * H; i++) {
         const rid = grid[i];
         const base = i * 4;
         if (rid === 255) { d[base+3] = 0; continue; }
-
-        // Soft edge: fade alpha near ellipse boundary
         const px = (i % W) * FILL_RES + FILL_RES / 2;
         const py = Math.floor(i / W) * FILL_RES + FILL_RES / 2;
-        const edgeDist = 1 - Math.sqrt(
-          Math.pow((px - c.x) / rx, 2) + Math.pow((py - c.y) / ry, 2)
-        );
-        const alpha = Math.min(1, edgeDist * 6) * 48; // ramp at edge
-
+        const edgeDist = 1 - Math.sqrt(Math.pow((px-c.x)/rx,2) + Math.pow((py-c.y)/ry,2));
+        const alpha = Math.min(1, edgeDist * 5) * 52;
         const [r, g, b] = regions[rid].rgba;
-        d[base] = r; d[base+1] = g; d[base+2] = b;
-        d[base+3] = Math.round(alpha);
+        d[base]=r; d[base+1]=g; d[base+2]=b; d[base+3]=Math.round(alpha);
       }
-
       offFillCtx.putImageData(fillImageData, 0, 0);
-
       ctx.save();
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-
-      // Clip draw to ellipse so fill never bleeds outside
-      ctx.beginPath();
-      ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI * 2);
-      ctx.clip();
-
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+      ctx.beginPath(); ctx.ellipse(center().x, center().y, eRX(), eRY(), 0, 0, Math.PI*2); ctx.clip();
       ctx.drawImage(offFill, 0, 0, canvas.width, canvas.height);
       ctx.restore();
     };
 
-    /* ---- Smooth Voronoi borders via Gaussian-blurred edge detection ---- */
+    /* Smooth borders: sample at GRID_RES, compute distance-to-boundary, draw soft glowing dots */
     const drawBorders = () => {
-      const W = Math.ceil(canvas.width  / GRID_RES);
-      const H = Math.ceil(canvas.height / GRID_RES);
-
-      // We need a border grid at GRID_RES (finer than fill grid)
-      // Reuse the fill grid but at GRID_RES scale by sampling
-      const c = center();
-      const rx = eRX(), ry = eRY();
+      const BW = Math.ceil(canvas.width  / GRID_RES);
+      const BH = Math.ceil(canvas.height / GRID_RES);
+      const c = center(); const rx = eRX(), ry = eRY();
 
       ctx.save();
-      ctx.beginPath();
-      ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI * 2);
-      ctx.clip();
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI*2); ctx.clip();
 
-      // Draw smooth border: for each boundary pixel, draw a soft glow line
-      ctx.lineWidth = 2;
-      ctx.setLineDash([]);
-
-      // Sample fine grid for borders
-      for (let gy = 0; gy < H - 1; gy++) {
-        for (let gx = 0; gx < W - 1; gx++) {
+      for (let gy = 0; gy < BH; gy++) {
+        for (let gx = 0; gx < BW; gx++) {
           const px = gx * GRID_RES + GRID_RES / 2;
           const py = gy * GRID_RES + GRID_RES / 2;
-
           if (!inEllipse(px, py, c.x, c.y, rx, ry)) continue;
 
-          // Find nearest two regions at this point
           let d1 = Infinity, d2 = Infinity, r1 = 0, r2 = 1;
           for (const r of regions) {
             const dx = px - r.seed.x, dy = py - r.seed.y;
             const d = dx*dx + dy*dy;
-            if (d < d1) { d2 = d1; r2 = r1; d1 = d; r1 = r.id; }
-            else if (d < d2) { d2 = d; r2 = r.id; }
+            if (d < d1) { d2=d1; r2=r1; d1=d; r1=r.id; }
+            else if (d < d2) { d2=d; r2=r.id; }
           }
 
-          // Proximity to Voronoi boundary = how close d1 and d2 are
-          const borderProx = 1 - (Math.sqrt(d2) - Math.sqrt(d1)) / (GRID_RES * 3);
-          if (borderProx > 0.6) {
-            const alpha = Math.pow((borderProx - 0.6) / 0.4, 1.5) * 0.85;
-            const h1 = REGION_DEFS[r1].hue, h2 = REGION_DEFS[r2].hue;
-            const avgH = (h1 + h2) / 2;
-            ctx.strokeStyle = `hsla(${avgH},75%,80%,${alpha})`;
-            ctx.beginPath();
-            ctx.arc(px, py, GRID_RES * 0.6, 0, Math.PI * 2);
-            ctx.stroke();
+          const borderProx = 1 - (Math.sqrt(d2) - Math.sqrt(d1)) / (GRID_RES * 3.5);
+          if (borderProx > 0.58) {
+            const alpha = Math.pow((borderProx - 0.58) / 0.42, 1.4) * 0.9;
+            const avgH = (REGION_DEFS[r1].hue + REGION_DEFS[r2].hue) / 2;
+            ctx.strokeStyle = `hsla(${avgH},80%,82%,${alpha})`;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.arc(px, py, GRID_RES * 0.55, 0, Math.PI*2); ctx.stroke();
           }
         }
       }
-
       ctx.restore();
     };
 
-    /* ---- Outer ellipse ring ---- */
     const drawOuterRing = () => {
-      const c = center();
-      const rx = eRX(), ry = eRY();
+      const c = center(); const rx = eRX(), ry = eRY();
       ctx.save();
-      ctx.beginPath();
-      ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(76,201,240,0.25)";
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 8]);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI*2);
+      ctx.strokeStyle = "rgba(76,201,240,0.3)";
+      ctx.lineWidth = 1.5; ctx.setLineDash([6,8]); ctx.stroke(); ctx.setLineDash([]);
       ctx.restore();
 
-      // Region name labels on the boundary
       for (const r of regions) {
-        const angle = (r.id / REGION_COUNT) * Math.PI * 2;
-        const lx = c.x + Math.cos(angle) * (rx * 0.78);
-        const ly = c.y + Math.sin(angle) * (ry * 0.78);
+        const angle = (r.id / REGION_COUNT) * Math.PI * 2 + globalAngle;
+        const lx = c.x + Math.cos(angle) * rx * 0.80;
+        const ly = c.y + Math.sin(angle) * ry * 0.80;
         ctx.save();
         ctx.font = "9px system-ui";
-        ctx.letterSpacing = "0.12em";
-        ctx.fillStyle = `hsla(${r.hue},70%,72%,0.6)`;
+        ctx.fillStyle = `hsla(${r.hue},70%,72%,0.55)`;
         ctx.textAlign = "center";
         ctx.fillText(REGION_DEFS[r.id].name.toUpperCase(), lx, ly);
         ctx.restore();
       }
     };
 
-    /* ---- Signals (travel along edges only) ---- */
-    interface Signal { a: any; b: any; t: number; speed: number; color: string }
-    const signals: Signal[] = [];
-    // Edge list: pairs of node indices that are "connected"
-    const edges: [number, number][] = [];
+    /* ---- Signals ---- */
+    interface Sig { a: any; b: any; t: number; speed: number; color: string }
+    const signals: Sig[] = [];
 
-    // Build edges once (within-region and some cross-region)
-    const buildEdges = () => {
-      edges.length = 0;
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = nodes[i], b = nodes[j];
-          const dx = a.x - b.x, dy = a.y - b.y;
-          const d = Math.sqrt(dx*dx + dy*dy);
-          if (d < 160) edges.push([i, j]);
-        }
-      }
-    };
-
-    // Rebuild edges every 60 frames
-    let edgeTimer = 0;
-
-    const spawnSignal = (edgeIdx: number) => {
-      if (edges.length === 0) return;
-      const [ai, bi] = edges[edgeIdx % edges.length];
-      const a = nodes[ai], b = nodes[bi];
-      const sameRegion = a.regionId === b.regionId;
-      const hue = REGION_DEFS[a.regionId].hue;
+    const spawnSignalBetween = (a: any, b: any) => {
+      const same = a.regionId === b.regionId;
+      const hue  = REGION_DEFS[a.regionId].hue;
       signals.push({
-        a, b,
-        t: 0,
-        speed: 0.008 + Math.random() * 0.012,
-        color: sameRegion
-          ? `hsla(${hue},90%,80%,0.9)`
-          : "rgba(180,220,255,0.7)",
+        a, b, t: 0,
+        speed: 0.007 + Math.random() * 0.013,
+        color: same ? `hsla(${hue},90%,80%,0.95)` : "rgba(180,220,255,0.7)",
       });
     };
 
     /* ---- Waves ---- */
     const waves: any[] = [];
     const spawnWave = (origin: any) =>
-      waves.push({ origin, radius: 0, speed: 1.4 + Math.random() * 0.6, max: 220 });
+      waves.push({ x: origin.x, y: origin.y, radius: 0, speed: 1.6 + Math.random()*0.6, max: 230 });
 
+    /* ---- Global rotation ---- */
+    let globalAngle = 0;
+    const ROTATION_SPEED = 0.00035; // smooth, visible
+
+    /* ---- Mouse ---- */
     const onMove = (e: MouseEvent) => {
       const r = canvas.getBoundingClientRect();
       mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
     };
     canvas.addEventListener("mousemove", onMove);
 
-    /* ============================================================
-       MAIN DRAW LOOP
-       ============================================================ */
+    /* ---- Init: size canvas then place nodes ---- */
+    resize(); // sets canvas.width/height properly
+    // Now place home positions with correct canvas size
+    nodes.forEach(n => {
+      const c = center();
+      n.homeX = c.x + Math.cos(n.regionAngle) * eRX() * 0.45 + Math.cos(n.spreadAngle) * n.spreadR;
+      n.homeY = c.y + Math.sin(n.regionAngle) * eRY() * 0.45 + Math.sin(n.spreadAngle) * n.spreadR;
+      n.x = n.homeX; n.y = n.homeY;
+    });
+    window.addEventListener("resize", resize);
+
     let frame = 0;
 
     const draw = () => {
-      const c = center();
-      const rx = eRX(), ry = eRY();
+      const c = center(); const rx = eRX(), ry = eRY();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       frame++;
+
+      /* Global rotation — update home positions each frame */
+      globalAngle += ROTATION_SPEED;
+      nodes.forEach(n => {
+        const rotAngle = n.regionAngle + globalAngle;
+        const regionCX = c.x + Math.cos(rotAngle) * rx * 0.45;
+        const regionCY = c.y + Math.sin(rotAngle) * ry * 0.45;
+        const nodeAngle = n.spreadAngle + globalAngle;
+        n.homeX = regionCX + Math.cos(nodeAngle) * n.spreadR;
+        n.homeY = regionCY + Math.sin(nodeAngle) * n.spreadR;
+      });
 
       /* Voronoi */
       if (frame % VORONOI_EVERY === 0) updateGrid();
@@ -481,149 +417,177 @@ function NeuralNetwork() {
       drawBorders();
       drawOuterRing();
 
-      /* Node physics — orbit around baseX/baseY, soft ellipse constraint */
+      /* ---- Node physics ---- */
       for (const n of nodes) {
+        // Subtle personal orbit wobble on top of global rotation
         n.orbitPhase += n.orbitSpeed;
+        const wobbleX = Math.cos(n.orbitPhase) * n.orbitAmp;
+        const wobbleY = Math.sin(n.orbitPhase * 1.3) * n.orbitAmp;
 
-        // Gently drift toward orbit point
-        const tx = n.baseX + Math.cos(n.orbitPhase) * (n.orbitR * 0.18);
-        const ty = n.baseY + Math.sin(n.orbitPhase) * (n.orbitR * 0.18);
+        const targetX = n.homeX + wobbleX;
+        const targetY = n.homeY + wobbleY;
 
-        // Mouse repulsion
-        const mdx = n.x - mouse.x, mdy = n.y - mouse.y;
-        const md = Math.sqrt(mdx*mdx + mdy*mdy);
-        if (md < 180) {
-          const push = (1 - md/180) * 1.2;
-          n.vx += (mdx/md) * push;
-          n.vy += (mdy/md) * push;
+        // Mouse interaction — attract when far, strong repel when close
+        const mdx = mouse.x - n.x, mdy = mouse.y - n.y;
+        const md  = Math.sqrt(mdx*mdx + mdy*mdy);
+
+        if (md < 200 && md > 0.1) {
+          if (md < 50) {
+            // Strong repulsion on hover
+            const push = (1 - md/50) * 3.5;
+            n.vx -= (mdx/md) * push;
+            n.vy -= (mdy/md) * push;
+          } else {
+            // Gentle attraction in the 50–200px zone
+            const pull = (1 - (md-50)/150) * 0.35;
+            n.vx += (mdx/md) * pull;
+            n.vy += (mdy/md) * pull;
+          }
         }
 
-        n.vx += (tx - n.x) * 0.018;
-        n.vy += (ty - n.y) * 0.018;
-        n.vx *= 0.88; n.vy *= 0.88;
+        // Spring toward rotating home
+        n.vx += (targetX - n.x) * 0.022;
+        n.vy += (targetY - n.y) * 0.022;
+        n.vx *= 0.86; n.vy *= 0.86;
         n.x  += n.vx;  n.y  += n.vy;
 
-        // Hard ellipse clamp
+        // Ellipse boundary bounce
         const ndx = (n.x - c.x) / rx, ndy = (n.y - c.y) / ry;
-        const nd = Math.sqrt(ndx*ndx + ndy*ndy);
-        if (nd > 0.95) {
-          const scale = 0.93 / nd;
+        const nd  = Math.sqrt(ndx*ndx + ndy*ndy);
+        if (nd > 0.94) {
+          const scale = 0.92 / nd;
           n.x = c.x + ndx * rx * scale;
           n.y = c.y + ndy * ry * scale;
-          n.vx *= -0.3; n.vy *= -0.3;
+          n.vx *= -0.25; n.vy *= -0.25;
         }
 
-        if (n.active) {
-          const dist = Math.sqrt(mdx*mdx + mdy*mdy);
-          if (dist < 140 && Math.random() < 0.025) spawnWave(n);
-        }
+        // Wave spawn when mouse is close to active node
+        if (n.active && md < 120 && Math.random() < 0.022) spawnWave(n);
+        // Random background activity
+        if (n.active && Math.random() < 0.002) spawnWave(n);
       }
 
-      /* Rebuild edges periodically */
-      edgeTimer++;
-      if (edgeTimer % 60 === 0) buildEdges();
-
-      /* Spawn signals on existing edges */
-      if (edges.length > 0 && Math.random() < 0.04) {
-        spawnSignal(Math.floor(Math.random() * edges.length));
-      }
-
-      /* Wave → node impulses */
+      /* ---- Waves ---- */
       for (let i = waves.length-1; i >= 0; i--) {
         waves[i].radius += waves[i].speed;
         if (waves[i].radius > waves[i].max) { waves.splice(i, 1); continue; }
         const w = waves[i];
+        const wAlpha = (1 - w.radius / w.max) * 0.35;
+        // Visual wave ring
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, w.radius, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(120,200,255,${wAlpha})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Impulse nearby nodes
         for (const n of nodes) {
-          const dx = n.x - w.origin.x, dy = n.y - w.origin.y;
+          const dx = n.x - w.x, dy = n.y - w.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
           const diff = Math.abs(dist - w.radius);
-          if (diff < 18) {
-            const p = (1 - diff/18) * 0.25;
-            n.pulse    = Math.min(1, n.pulse + p);
+          if (diff < 22) {
+            const p = (1 - diff/22) * 0.3;
+            n.vx += (dx/(dist||1)) * p * 0.8;
+            n.vy += (dy/(dist||1)) * p * 0.8;
+            n.pulse    = Math.min(1, n.pulse + p * 1.2);
             n.activity = Math.min(1, n.activity + p);
           }
         }
       }
 
-      /* Update signals */
+      /* ---- Build & draw edges (live, every frame for correct positions) ---- */
+      const activeEdges: [any,any,number][] = []; // [a, b, dist]
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i+1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dx = a.x-b.x, dy = a.y-b.y;
+          const d  = Math.sqrt(dx*dx + dy*dy);
+          if (d < 160) {
+            activeEdges.push([a, b, d]);
+            const same  = a.regionId === b.regionId;
+            const fade  = Math.max(0, 1 - d/160);
+            const hue   = same ? REGION_DEFS[a.regionId].hue : 200;
+            const alpha = (same ? 0.28 : 0.09) * fade;
+            ctx.strokeStyle = `hsla(${hue},65%,72%,${alpha})`;
+            ctx.lineWidth   = same ? 0.9 : 0.4;
+            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+          }
+        }
+      }
+
+      /* ---- Spawn signals randomly on live edges ---- */
+      if (activeEdges.length > 0 && Math.random() < 0.045) {
+        const [a, b] = activeEdges[Math.floor(Math.random() * activeEdges.length)];
+        spawnSignalBetween(a, b);
+      }
+      // Extra signals near mouse
+      for (const n of nodes) {
+        const mdx = mouse.x - n.x, mdy = mouse.y - n.y;
+        const md  = Math.sqrt(mdx*mdx + mdy*mdy);
+        if (md < 60 && Math.random() < 0.04) {
+          const candidates = activeEdges.filter(([a,b]) => a===n || b===n);
+          if (candidates.length) {
+            const [a,b] = candidates[Math.floor(Math.random()*candidates.length)];
+            spawnSignalBetween(a, b);
+          }
+        }
+      }
+
+      /* ---- Update & draw signals ---- */
       for (let i = signals.length-1; i >= 0; i--) {
         signals[i].t += signals[i].speed;
-        if (signals[i].t >= 1) signals.splice(i, 1);
-      }
-
-      /* Draw edges */
-      for (const [ai, bi] of edges) {
-        const a = nodes[ai], b = nodes[bi];
-        const dx = a.x-b.x, dy = a.y-b.y;
-        const d = Math.sqrt(dx*dx + dy*dy);
-        const same = a.regionId === b.regionId;
-        const alpha = same ? 0.22 : 0.07;
-        const hue   = same ? REGION_DEFS[a.regionId].hue : 200;
-        const fade  = Math.max(0, 1 - d / 160);
-        ctx.strokeStyle = `hsla(${hue},60%,72%,${alpha * fade})`;
-        ctx.lineWidth = same ? 0.8 : 0.4;
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-      }
-
-      /* Draw signals — travel along edge, glow tail */
-      for (const s of signals) {
+        if (signals[i].t >= 1) { signals.splice(i, 1); continue; }
+        const s = signals[i];
         const x = s.a.x + (s.b.x - s.a.x) * s.t;
         const y = s.a.y + (s.b.y - s.a.y) * s.t;
+        const tx2 = s.a.x + (s.b.x - s.a.x) * Math.max(0, s.t - 0.15);
+        const ty2 = s.a.y + (s.b.y - s.a.y) * Math.max(0, s.t - 0.15);
 
-        // Tail
-        const tx2 = s.a.x + (s.b.x - s.a.x) * Math.max(0, s.t - 0.12);
-        const ty2 = s.a.y + (s.b.y - s.a.y) * Math.max(0, s.t - 0.12);
         const grad = ctx.createLinearGradient(tx2, ty2, x, y);
         grad.addColorStop(0, "rgba(0,0,0,0)");
         grad.addColorStop(1, s.color);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = grad; ctx.lineWidth = 1.8;
         ctx.beginPath(); ctx.moveTo(tx2, ty2); ctx.lineTo(x, y); ctx.stroke();
 
-        // Head glow
         ctx.save();
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = s.color;
-        ctx.fillStyle   = "white";
-        ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 12; ctx.shadowColor = s.color;
+        ctx.fillStyle = "white";
+        ctx.beginPath(); ctx.arc(x, y, 2.4, 0, Math.PI*2); ctx.fill();
         ctx.restore();
       }
 
-      /* Draw nodes */
+      /* ---- Draw nodes ---- */
       for (const n of nodes) {
-        const dx = mouse.x - n.x, dy = mouse.y - n.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        const near  = dist < 100;
-        const hover = dist < 22;
+        const mdx = mouse.x - n.x, mdy = mouse.y - n.y;
+        const dist = Math.sqrt(mdx*mdx + mdy*mdy);
+        const near  = dist < 110;
+        const hover = dist < 30;
 
         let size = n.active ? 5.5 : 2.5;
-        size *= 1 + n.pulse * 0.6;
-        if (near)  size *= 1.3;
-        if (hover) size *= 1.8;
+        size *= 1 + n.pulse * 0.7;
+        if (near)  size *= 1.4;
+        if (hover) size *= 2.2;  // noticeably bigger on direct hover
         n.pulse    *= 0.88;
         n.activity *= 0.88;
 
         const hue = REGION_DEFS[n.regionId].hue;
-
-        // Outer glow for active nodes
         if (n.active) {
           ctx.save();
-          ctx.shadowBlur  = 12 + n.activity * 10;
-          ctx.shadowColor = `hsla(${hue},80%,65%,0.6)`;
-          ctx.fillStyle   = `hsla(${hue},80%,72%,${0.8 + n.activity * 0.2})`;
-          ctx.beginPath(); ctx.arc(n.x, n.y, size, 0, Math.PI * 2); ctx.fill();
+          ctx.shadowBlur  = 14 + n.activity * 12;
+          ctx.shadowColor = `hsla(${hue},85%,65%,0.7)`;
+          ctx.fillStyle   = `hsla(${hue},80%,72%,${0.82 + n.activity * 0.18})`;
+          ctx.beginPath(); ctx.arc(n.x, n.y, size, 0, Math.PI*2); ctx.fill();
           ctx.restore();
         } else {
-          ctx.fillStyle = `hsla(${hue},35%,65%,0.38)`;
-          ctx.beginPath(); ctx.arc(n.x, n.y, size, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = `hsla(${hue},35%,65%,0.40)`;
+          ctx.beginPath(); ctx.arc(n.x, n.y, size, 0, Math.PI*2); ctx.fill();
         }
 
-        // Label
         if (n.active && near) {
           ctx.save();
           ctx.fillStyle = hover ? "white" : `hsla(${hue},60%,90%,0.85)`;
           ctx.font = hover ? "bold 13px system-ui" : "11px system-ui";
-          ctx.fillText(n.label, n.x + 9, n.y + 4);
+          ctx.fillText(n.label, n.x + 10, n.y + 4);
           ctx.restore();
         }
       }
@@ -631,7 +595,6 @@ function NeuralNetwork() {
       requestAnimationFrame(draw);
     };
 
-    buildEdges();
     updateGrid();
     draw();
 

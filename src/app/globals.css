@@ -46,6 +46,8 @@ html, body {
   letter-spacing: 0.12em;
   background: linear-gradient(to bottom, rgba(5,8,22,0.7) 0%, transparent 100%);
   gap: 8px;
+  /* pointer-events none so it never intercepts canvas mouse events */
+  pointer-events: none;
 }
 .hudItem { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hudCenter { flex: 1; text-align: center; }
@@ -64,6 +66,8 @@ html, body {
   transition: all 0.3s ease;
   backdrop-filter: blur(6px);
   min-width: 140px;
+  /* Allow pointer events only on the widget itself */
+  pointer-events: auto;
 }
 .flightWidget.expanded {
   border-color: rgba(76,201,240,0.5);
@@ -123,6 +127,7 @@ html, body {
   transform: translateY(-50%);
   z-index: 20;
   display: flex; flex-direction: column; gap: 12px;
+  pointer-events: auto;
 }
 .dot {
   width: 8px; height: 8px;
@@ -147,15 +152,33 @@ html, body {
 h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
 
 /* ---- NEURAL ---- */
+/*
+  The neuralSection is the hit-target for mouse events.
+  pointer-events: all ensures it captures mousemove even when
+  child elements (titleOverlay, canvas) are underneath.
+  The canvas itself also needs pointer-events: none so that
+  the parent section is the single listener — avoids duplicate
+  or off-by-one coordinate issues.
+*/
 .neuralSection {
   height: 100vh;
-  position: relative; overflow: hidden; z-index: 2;
+  position: relative;
+  overflow: hidden;
+  z-index: 2;
+  pointer-events: all;
 }
-.neural { width: 100%; height: 100%; display: block; }
+.neural {
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Canvas receives no pointer events — the section wrapper handles all of them */
+  pointer-events: none;
+}
 .titleOverlay {
   position: absolute; top: 6%; left: 50%;
   transform: translateX(-50%);
-  z-index: 10; text-align: center; pointer-events: none;
+  z-index: 10; text-align: center;
+  pointer-events: none;
 }
 .titleOverlay h1 {
   font-size: 48px; letter-spacing: 0.35em; opacity: 0.9; margin: 0;
@@ -188,15 +211,16 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   overflow: visible;
+  /* SVG should not intercept pointer events — nodes sit on top */
+  pointer-events: none;
 }
 
-/* Timeline nodes */
+/* ---- Timeline nodes ---- */
 .tlNode {
   position: absolute;
   transform: translate(-50%, -50%);
   cursor: pointer;
-  z-index: 5;
-  transition: top 0.4s ease-out;
+  /* z-index is set inline (5 default, 30 when hovered) */
 }
 .tlDot {
   width: 16px; height: 16px;
@@ -204,13 +228,16 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
   background: hsl(var(--hue), 65%, 62%);
   box-shadow: 0 0 12px hsla(var(--hue), 70%, 65%, 0.5);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  z-index: 1;
 }
-.tlNode:hover .tlDot {
+.tlNode:hover .tlDot,
+.tlNode.tlHovered .tlDot {
   transform: scale(1.6);
   box-shadow: 0 0 26px hsla(var(--hue), 80%, 70%, 0.85);
 }
-.tlNode.done   .tlDot { opacity: 1; }
-.tlNode.active .tlDot { opacity: 1; }
+.tlNode.done    .tlDot { opacity: 1; }
+.tlNode.active  .tlDot { opacity: 1; }
 .tlNode.planned .tlDot { opacity: 0.65; }
 .tlNode.future  .tlDot { opacity: 0.35; background: hsl(var(--hue),30%,50%); }
 
@@ -224,41 +251,44 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
   border: 1.5px solid hsla(var(--hue), 70%, 65%, 0.6);
   animation: tlPulse 2s ease-out infinite;
   pointer-events: none;
+  z-index: 0;
 }
 @keyframes tlPulse {
-  0%   { transform: translate(-50%,-50%) scale(1); opacity: 0.8; }
-  100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; }
+  0%   { transform: translate(-50%,-50%) scale(1);   opacity: 0.8; }
+  100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0;   }
 }
 
 .tlYear {
   font-size: 11px; letter-spacing: 0.12em;
   text-align: center; margin-top: 8px;
   white-space: nowrap;
+  position: relative;
+  z-index: 1;
 }
 
-/* Hover card */
+/* ---- Hover card ---- */
 .tlCard {
   position: absolute;
   left: 50%; transform: translateX(-50%);
   width: 230px;
   display: flex;
   flex-direction: column;
-  background: rgba(5,8,22,0.9);
+  background: rgba(5,8,22,0.92);
   border: 1px solid hsla(var(--hue), 60%, 55%, 0.35);
   padding: 12px;
   backdrop-filter: blur(8px);
   animation: cardPop 0.18s ease;
-  z-index: 20;
+  z-index: 40;
   pointer-events: auto;
 }
 .tlCard.above { bottom: 34px; }
 .tlCard.below { top:    34px; }
 @keyframes cardPop {
   from { opacity:0; transform: translateX(-50%) scale(0.95); }
-  to   { opacity:1; transform: translateX(-50%) scale(1); }
+  to   { opacity:1; transform: translateX(-50%) scale(1);    }
 }
 
-/* Image area inside the card — placeholder until real images are added */
+/* Image area inside the card */
 .tlCardImage {
   width: 100%;
   height: 104px;
@@ -392,6 +422,6 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
 }
 @keyframes glowBoot {
   0%   { opacity:0; filter: blur(10px); }
-  50%  { opacity:1; filter: blur(2px); }
+  50%  { opacity:1; filter: blur(2px);  }
   100% { opacity:0.8; filter: blur(0px); }
 }

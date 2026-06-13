@@ -104,7 +104,7 @@ const REGION_DEFS = [
   },
 ];
 
-const INACTIVE_PER_REGION = 6; // extra background nodes per region
+const INACTIVE_PER_REGION = 14; // extra background nodes per region
 const TOTAL_NODES = REGION_COUNT * (REGION_DEFS[0].labels.length + INACTIVE_PER_REGION);
 
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
@@ -299,7 +299,7 @@ function NeuralNetwork() {
       id, hue: rDef.hue, name: rDef.name,
       seed: { x: 0, y: 0 },
       nodeIds: nodes.filter(n => n.regionId === id).map(n => n.id),
-      rgba: hslToRgb(rDef.hue / 360, 0.55, 0.14),
+      rgba: hslToRgb(rDef.hue / 360, 0.62, 0.24),
     }));
 
     /* ---- Voronoi grid ---- */
@@ -354,7 +354,7 @@ function NeuralNetwork() {
         const px = (i % W) * FILL_RES + FILL_RES / 2;
         const py = Math.floor(i / W) * FILL_RES + FILL_RES / 2;
         const edgeDist = 1 - Math.sqrt(Math.pow((px-c.x)/rx,2) + Math.pow((py-c.y)/ry,2));
-        const alpha = Math.min(1, edgeDist * 5) * 52;
+        const alpha = Math.min(1, edgeDist * 4) * 100;
         const [r, g, b] = regions[rid].rgba;
         d[base]=r; d[base+1]=g; d[base+2]=b; d[base+3]=Math.round(alpha);
       }
@@ -392,12 +392,12 @@ function NeuralNetwork() {
 
         const avgHue = (a.hue + b.hue) / 2;
         const grad = ctx.createLinearGradient(x1, y1, x2, y2);
-        grad.addColorStop(0,   `hsla(${a.hue},70%,72%,0)`);
-        grad.addColorStop(0.5, `hsla(${avgHue},78%,80%,0.22)`);
-        grad.addColorStop(1,   `hsla(${b.hue},70%,72%,0)`);
+        grad.addColorStop(0,   `hsla(${a.hue},75%,75%,0)`);
+        grad.addColorStop(0.5, `hsla(${avgHue},85%,82%,0.45)`);
+        grad.addColorStop(1,   `hsla(${b.hue},75%,75%,0)`);
 
         ctx.strokeStyle = grad;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.6;
         ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
       }
       ctx.restore();
@@ -451,12 +451,16 @@ function NeuralNetwork() {
       pulses.push({ from: origin, node: origin, strength: 1, delay: 0, depth: 0 });
     };
 
-    /* ---- Region containment (hard constraint) ----
-       A node may never cross out of its own region's slice — i.e. it must
-       stay closer to its own region's seed than to either angularly
-       adjacent region's seed. If the physics pushed it past that
-       boundary, snap it back just inside. */
-    const REGION_MARGIN = 10;
+    /* ---- Region containment (adaptive constraint) ----
+       A node should never visually leave its own region's slice — i.e. it
+       must stay at least as close to its own region's seed as to either
+       angularly adjacent region's seed. Rather than teleporting the node
+       back, we nudge it back gently each frame. Because the region seed is
+       itself the average of its member nodes' positions, a node pressing
+       toward a border pulls its own seed (and therefore the boundary line)
+       toward it too — so the boundary visibly bulges/adapts to keep the
+       node inside instead of the node snapping. */
+    const REGION_MARGIN = 6;
     const enforceContainment = (n: any) => {
       const r = n.regionId;
       const own = regions[r].seed;
@@ -472,17 +476,17 @@ function NeuralNetwork() {
         const marginTerm = REGION_MARGIN * Math.sqrt(dLen2);
         if (proj > -marginTerm) {
           const excess = proj + marginTerm;
-          const factor = excess / dLen2;
+          const factor = (excess / dLen2) * 0.6; // soft, partial correction
           n.x -= dx * factor;
           n.y -= dy * factor;
-          n.vx *= 0.3; n.vy *= 0.3;
+          n.vx *= 0.6; n.vy *= 0.6;
         }
       }
     };
 
     /* ---- Global rotation ---- */
     let globalAngle = 0;
-    const ROTATION_SPEED = 0.00035; // smooth, visible
+    const ROTATION_SPEED = 0.0004; // smooth, visible
 
     /* ---- Mouse ---- */
     const onMove = (e: MouseEvent) => {

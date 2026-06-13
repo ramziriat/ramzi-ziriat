@@ -180,9 +180,9 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
 
 .timelineTrack {
   position: relative;
-  width: 92%;
-  max-width: 1000px;
-  height: 280px;
+  width: 96%;
+  max-width: 1320px;
+  height: 380px;
 }
 .timelineSVG {
   position: absolute; inset: 0;
@@ -196,17 +196,18 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
   transform: translate(-50%, -50%);
   cursor: pointer;
   z-index: 5;
+  transition: top 0.4s ease-out;
 }
 .tlDot {
-  width: 14px; height: 14px;
+  width: 16px; height: 16px;
   border-radius: 50%;
   background: hsl(var(--hue), 65%, 62%);
-  box-shadow: 0 0 10px hsla(var(--hue), 70%, 65%, 0.5);
-  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 0 12px hsla(var(--hue), 70%, 65%, 0.5);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .tlNode:hover .tlDot {
-  transform: scale(1.5);
-  box-shadow: 0 0 22px hsla(var(--hue), 80%, 70%, 0.8);
+  transform: scale(1.6);
+  box-shadow: 0 0 26px hsla(var(--hue), 80%, 70%, 0.85);
 }
 .tlNode.done   .tlDot { opacity: 1; }
 .tlNode.active .tlDot { opacity: 1; }
@@ -218,7 +219,7 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 30px; height: 30px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   border: 1.5px solid hsla(var(--hue), 70%, 65%, 0.6);
   animation: tlPulse 2s ease-out infinite;
@@ -230,8 +231,8 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
 }
 
 .tlYear {
-  font-size: 10px; letter-spacing: 0.12em;
-  text-align: center; margin-top: 6px;
+  font-size: 11px; letter-spacing: 0.12em;
+  text-align: center; margin-top: 8px;
   white-space: nowrap;
 }
 
@@ -239,28 +240,60 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
 .tlCard {
   position: absolute;
   left: 50%; transform: translateX(-50%);
-  width: 200px;
-  background: rgba(5,8,22,0.88);
+  width: 230px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(5,8,22,0.9);
   border: 1px solid hsla(var(--hue), 60%, 55%, 0.35);
-  padding: 12px 14px;
+  padding: 12px;
   backdrop-filter: blur(8px);
   animation: cardPop 0.18s ease;
   z-index: 20;
-  pointer-events: none;
+  pointer-events: auto;
 }
-.tlCard.above { bottom: 28px; }
-.tlCard.below { top:    28px; }
+.tlCard.above { bottom: 34px; }
+.tlCard.below { top:    34px; }
 @keyframes cardPop {
   from { opacity:0; transform: translateX(-50%) scale(0.95); }
   to   { opacity:1; transform: translateX(-50%) scale(1); }
 }
+
+/* Image area inside the card — placeholder until real images are added */
+.tlCardImage {
+  width: 100%;
+  height: 104px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid hsla(var(--hue), 55%, 60%, 0.25);
+  background: rgba(255,255,255,0.02);
+}
+.tlCardImage img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tlImagePlaceholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; letter-spacing: 0.3em;
+  color: hsla(var(--hue), 60%, 75%, 0.35);
+  background: repeating-linear-gradient(
+    45deg,
+    hsla(var(--hue), 50%, 45%, 0.07) 0px,
+    hsla(var(--hue), 50%, 45%, 0.07) 8px,
+    transparent 8px,
+    transparent 16px
+  );
+}
+
+.tlCardBody {}
 .tlCardStatus {
   font-size: 9px; letter-spacing: 0.2em;
   color: hsla(var(--hue), 70%, 72%, 0.7);
   margin-bottom: 4px;
 }
 .tlCardTitle {
-  font-size: 14px; font-weight: 600; letter-spacing: 0.08em;
+  font-size: 14px; font-weight: 600; letter-spacing: 0.06em;
   color: hsl(var(--hue), 60%, 88%);
   margin-bottom: 6px;
 }
@@ -269,9 +302,34 @@ h2 { font-size: 36px; letter-spacing: 0.3em; margin: 0 0 32px; }
   color: rgba(229,240,255,0.65);
 }
 
+/* Pagination dots for multi-entry years */
+.tlCardPagination {
+  display: flex;
+  gap: 7px;
+  justify-content: center;
+  margin-top: 12px;
+}
+.tlPageDot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: hsla(var(--hue), 40%, 60%, 0.25);
+  transition: all 0.2s ease;
+}
+.tlPageDot.active {
+  background: hsl(var(--hue), 65%, 70%);
+  box-shadow: 0 0 8px hsla(var(--hue), 70%, 65%, 0.8);
+  transform: scale(1.2);
+}
+.tlPageDot:hover {
+  background: hsla(var(--hue), 60%, 70%, 0.6);
+}
+
 /* Legend */
 .tlLegend {
-  display: flex; gap: 24px; margin-top: 16px;
+  display: flex; gap: 24px; margin-top: 20px;
 }
 .tlLegendItem {
   display: flex; align-items: center; gap: 6px;

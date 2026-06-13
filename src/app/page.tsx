@@ -3,32 +3,68 @@
 import { useEffect, useRef, useState } from "react";
 
 /* ============================================================
-   MISSION DATA
+   TIMELINE DATA
    ============================================================ */
+const TIMELINE_W = 1200;
+const TIMELINE_H = 320;
+
 const missions = [
   {
-    year: 2001, title: "System Boot", desc: "Born in Algeria. First breath, first curiosity.",
-    status: "DONE", hue: 200,
+    year: 2001, hue: 200, yBase: 230, offset: 10,
+    entries: [
+      { status: "DONE", title: "System Boot", desc: "Born in Algeria. First breath, first curiosity.", image: null as string | null },
+    ],
   },
   {
-    year: 2015, title: "First Signal", desc: "Structured scientific thought ignites. Physics, math, the cosmos.",
-    status: "DONE", hue: 210,
+    year: 2010, hue: 205, yBase: 140, offset: -16,
+    entries: [
+      { status: "DONE", title: "Early Curiosity", desc: "First telescope, first questions about the sky and how things really work.", image: null as string | null },
+    ],
   },
   {
-    year: 2023, title: "Lift-off", desc: "Solo flight hours begin. PPL pathway. Aviation becomes reality.",
-    status: "DONE", hue: 240,
+    year: 2015, hue: 210, yBase: 250, offset: 14,
+    entries: [
+      { status: "DONE", title: "First Signal", desc: "Structured scientific thought ignites. Physics, math, the cosmos.", image: null as string | null },
+    ],
   },
   {
-    year: 2026, title: "Deep Field", desc: "Astrophysics · Cosmology · Philosophy of Science. Research phase active.",
-    status: "ACTIVE", hue: 280,
+    year: 2020, hue: 225, yBase: 110, offset: -12,
+    entries: [
+      { status: "DONE", title: "Foundations", desc: "Baccalaureate preparation. Building the rigor needed for the years ahead.", image: null as string | null },
+    ],
   },
   {
-    year: 2028, title: "Integration", desc: "Aerospace Engineering + M2. Propulsion meets spaceflight.",
-    status: "PLANNED", hue: 260,
+    year: 2023, hue: 240, yBase: 210, offset: 18,
+    entries: [
+      { status: "DONE", title: "Lift-off — Theory", desc: "PPL ground school begins. Aerodynamics, navigation, meteorology.", image: null as string | null },
+      { status: "DONE", title: "Lift-off — First Solo", desc: "Solo flight hours begin. Aviation becomes reality.", image: null as string | null },
+    ],
   },
   {
-    year: 2035, title: "Unified Doctrine", desc: "Pilot. Scientist. Engineer. One exploration philosophy.",
-    status: "FUTURE", hue: 300,
+    year: 2026, hue: 280, yBase: 90, offset: -14,
+    entries: [
+      { status: "ACTIVE", title: "Deep Field — Astrophysics", desc: "Astrophysics research phase active. Observation and spectroscopy focus.", image: null as string | null },
+      { status: "ACTIVE", title: "Deep Field — Cosmology", desc: "Cosmology seminars. Large-scale structure and the early universe.", image: null as string | null },
+      { status: "ACTIVE", title: "Deep Field — Philosophy", desc: "Philosophy of science reading group. The epistemology of discovery.", image: null as string | null },
+    ],
+  },
+  {
+    year: 2028, hue: 260, yBase: 230, offset: 12,
+    entries: [
+      { status: "PLANNED", title: "Integration", desc: "Aerospace Engineering + M2. Propulsion meets spaceflight.", image: null as string | null },
+    ],
+  },
+  {
+    year: 2032, hue: 270, yBase: 130, offset: -16,
+    entries: [
+      { status: "PLANNED", title: "Field Operations", desc: "Flight test programs and aerospace industry placements.", image: null as string | null },
+    ],
+  },
+  {
+    year: 2035, hue: 300, yBase: 200, offset: 10,
+    entries: [
+      { status: "FUTURE", title: "Unified Doctrine", desc: "Pilot. Scientist. Engineer. One exploration philosophy.", image: null as string | null },
+    ],
   },
 ];
 
@@ -82,6 +118,39 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
     return p;
   };
   return [Math.round(f(h+1/3)*255), Math.round(f(h)*255), Math.round(f(h-1/3)*255)];
+}
+
+/* Find the two parametric values t where the line through (mx,my) with
+   direction (dx,dy) intersects the ellipse centered at (cx,cy) with radii rx,ry. */
+function ellipseLineT(mx: number, my: number, dx: number, dy: number, cx: number, cy: number, rx: number, ry: number): [number, number] | null {
+  const ax = (mx - cx) / rx, ay = (my - cy) / ry;
+  const bx = dx / rx, by = dy / ry;
+  const a = bx*bx + by*by;
+  const b = 2 * (ax*bx + ay*by);
+  const c = ax*ax + ay*ay - 1;
+  const disc = b*b - 4*a*c;
+  if (disc < 0 || a === 0) return null;
+  const sq = Math.sqrt(disc);
+  return [(-b - sq) / (2*a), (-b + sq) / (2*a)];
+}
+
+/* Catmull-Rom -> cubic bezier path string, used for the gently undulating
+   timeline curve. */
+function catmullRom2bezier(pts: { x: number; y: number }[]): string {
+  if (pts.length < 2) return "";
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+  }
+  return d;
 }
 
 /* ============================================================
@@ -162,6 +231,7 @@ function NeuralNetwork() {
     const offFillCtx = offFill.getContext("2d")!;
 
     const FILL_RES = GRID_RES * 2;
+    const SCALE    = 1.3; // overall network size multiplier
 
     const resize = () => {
       const r = canvas.getBoundingClientRect();
@@ -179,8 +249,8 @@ function NeuralNetwork() {
 
     const mouse  = { x: -9999, y: -9999 };
     const center = () => ({ x: canvas.width / 2, y: canvas.height / 2 });
-    const eRX    = () => Math.min(canvas.width  * 0.42, 480);
-    const eRY    = () => Math.min(canvas.height * 0.40, 380);
+    const eRX    = () => Math.min(canvas.width  * 0.42 * SCALE, canvas.width  * 0.49, 480 * SCALE);
+    const eRY    = () => Math.min(canvas.height * 0.40 * SCALE, canvas.height * 0.49, 380 * SCALE);
 
     const inEllipse = (px: number, py: number, cx: number, cy: number, rx: number, ry: number) => {
       const dx = (px - cx) / rx, dy = (py - cy) / ry;
@@ -188,7 +258,6 @@ function NeuralNetwork() {
     };
 
     /* ---- Build nodes (NO canvas-size dependency at init) ---- */
-    // Store angles + distances; compute world positions each frame from live center
     const nodes: any[] = [];
 
     REGION_DEFS.forEach((rDef, rid) => {
@@ -196,7 +265,7 @@ function NeuralNetwork() {
 
       rDef.labels.forEach((label, li) => {
         const spreadAngle = (li / rDef.labels.length) * Math.PI * 2 + regionAngle;
-        const spreadR = 55 + Math.random() * 65;
+        const spreadR = (55 + Math.random() * 65) * SCALE;
         nodes.push({
           id: nodes.length, regionId: rid, active: true, label,
           regionAngle, spreadAngle, spreadR,
@@ -204,14 +273,14 @@ function NeuralNetwork() {
           x: 0, y: 0, vx: 0, vy: 0,
           orbitPhase: Math.random() * Math.PI * 2,
           orbitSpeed: 0.004 + Math.random() * 0.004, // visible speed
-          orbitAmp: 8 + Math.random() * 14,           // small orbit wobble
+          orbitAmp: (8 + Math.random() * 14) * SCALE, // small orbit wobble
           pulse: 0, activity: 0,
         });
       });
 
       for (let i = 0; i < INACTIVE_PER_REGION; i++) {
         const spreadAngle = Math.random() * Math.PI * 2;
-        const spreadR = 20 + Math.random() * 100;
+        const spreadR = (20 + Math.random() * 100) * SCALE;
         nodes.push({
           id: nodes.length, regionId: rid, active: false, label: "",
           regionAngle, spreadAngle, spreadR,
@@ -219,7 +288,7 @@ function NeuralNetwork() {
           x: 0, y: 0, vx: 0, vy: 0,
           orbitPhase: Math.random() * Math.PI * 2,
           orbitSpeed: 0.002 + Math.random() * 0.003,
-          orbitAmp: 5 + Math.random() * 10,
+          orbitAmp: (5 + Math.random() * 10) * SCALE,
           pulse: 0, activity: 0,
         });
       }
@@ -238,6 +307,15 @@ function NeuralNetwork() {
     let grid = new Uint8Array(1);
     let fillImageData = offFillCtx.createImageData(1, 1);
 
+    const updateSeeds = () => {
+      for (const r of regions) {
+        let sx = 0, sy = 0;
+        for (const nid of r.nodeIds) { sx += nodes[nid].x; sy += nodes[nid].y; }
+        const n = r.nodeIds.length || 1;
+        r.seed.x = sx / n; r.seed.y = sy / n;
+      }
+    };
+
     const updateGrid = () => {
       gW = offFill.width; gH = offFill.height;
       if (gW < 1 || gH < 1) return;
@@ -246,13 +324,6 @@ function NeuralNetwork() {
         fillImageData = offFillCtx.createImageData(gW, gH);
       }
       const c = center(); const rx = eRX(), ry = eRY();
-
-      for (const r of regions) {
-        let sx = 0, sy = 0;
-        for (const nid of r.nodeIds) { sx += nodes[nid].x; sy += nodes[nid].y; }
-        const n = r.nodeIds.length || 1;
-        r.seed.x = sx / n; r.seed.y = sy / n;
-      }
 
       for (let gy = 0; gy < gH; gy++) {
         for (let gx = 0; gx < gW; gx++) {
@@ -295,38 +366,39 @@ function NeuralNetwork() {
       ctx.restore();
     };
 
-    /* Smooth borders: sample at GRID_RES, compute distance-to-boundary, draw soft glowing dots */
-    const drawBorders = () => {
-      const BW = Math.ceil(canvas.width  / GRID_RES);
-      const BH = Math.ceil(canvas.height / GRID_RES);
+    /* Region boundaries drawn as soft, thin lines (the perpendicular
+       bisectors between angularly-adjacent region seeds), clipped to the
+       ellipse. They move and deform smoothly as the seeds drift with the
+       global rotation — far less "busy" than a dotted ring grid. */
+    const drawRegionBoundaries = () => {
       const c = center(); const rx = eRX(), ry = eRY();
-
       ctx.save();
       ctx.beginPath(); ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI*2); ctx.clip();
 
-      for (let gy = 0; gy < BH; gy++) {
-        for (let gx = 0; gx < BW; gx++) {
-          const px = gx * GRID_RES + GRID_RES / 2;
-          const py = gy * GRID_RES + GRID_RES / 2;
-          if (!inEllipse(px, py, c.x, c.y, rx, ry)) continue;
+      for (let i = 0; i < REGION_COUNT; i++) {
+        const a = regions[i];
+        const b = regions[(i + 1) % REGION_COUNT];
+        const dx = b.seed.x - a.seed.x, dy = b.seed.y - a.seed.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        if (len < 1) continue;
+        const mx = (a.seed.x + b.seed.x) / 2, my = (a.seed.y + b.seed.y) / 2;
+        // perpendicular direction to the seed-to-seed vector
+        const pdx = -dy / len, pdy = dx / len;
+        const ts = ellipseLineT(mx, my, pdx, pdy, c.x, c.y, rx, ry);
+        if (!ts) continue;
+        const [t1, t2] = ts;
+        const x1 = mx + pdx * t1, y1 = my + pdy * t1;
+        const x2 = mx + pdx * t2, y2 = my + pdy * t2;
 
-          let d1 = Infinity, d2 = Infinity, r1 = 0, r2 = 1;
-          for (const r of regions) {
-            const dx = px - r.seed.x, dy = py - r.seed.y;
-            const d = dx*dx + dy*dy;
-            if (d < d1) { d2=d1; r2=r1; d1=d; r1=r.id; }
-            else if (d < d2) { d2=d; r2=r.id; }
-          }
+        const avgHue = (a.hue + b.hue) / 2;
+        const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+        grad.addColorStop(0,   `hsla(${a.hue},70%,72%,0)`);
+        grad.addColorStop(0.5, `hsla(${avgHue},78%,80%,0.22)`);
+        grad.addColorStop(1,   `hsla(${b.hue},70%,72%,0)`);
 
-          const borderProx = 1 - (Math.sqrt(d2) - Math.sqrt(d1)) / (GRID_RES * 3.5);
-          if (borderProx > 0.58) {
-            const alpha = Math.pow((borderProx - 0.58) / 0.42, 1.4) * 0.9;
-            const avgH = (REGION_DEFS[r1].hue + REGION_DEFS[r2].hue) / 2;
-            ctx.strokeStyle = `hsla(${avgH},80%,82%,${alpha})`;
-            ctx.lineWidth = 2.5;
-            ctx.beginPath(); ctx.arc(px, py, GRID_RES * 0.55, 0, Math.PI*2); ctx.stroke();
-          }
-        }
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
       }
       ctx.restore();
     };
@@ -366,10 +438,47 @@ function NeuralNetwork() {
       });
     };
 
-    /* ---- Waves ---- */
-    const waves: any[] = [];
-    const spawnWave = (origin: any) =>
-      waves.push({ x: origin.x, y: origin.y, radius: 0, speed: 1.6 + Math.random()*0.6, max: 230 });
+    /* ---- Pulse propagation (invisible "waves") ----
+       Triggered only when the mouse rests on an active node. The pulse
+       hops to that node's adjacent neighbors (and, fading, their
+       neighbors), giving each a small outward impulse + glow boost.
+       Nothing is drawn for the wave itself — only its effect on nodes. */
+    interface Pulse { from: any; node: any; strength: number; delay: number; depth: number }
+    let pulses: Pulse[] = [];
+    let hoveredNodeId = -1;
+
+    const triggerPulse = (origin: any) => {
+      pulses.push({ from: origin, node: origin, strength: 1, delay: 0, depth: 0 });
+    };
+
+    /* ---- Region containment (hard constraint) ----
+       A node may never cross out of its own region's slice — i.e. it must
+       stay closer to its own region's seed than to either angularly
+       adjacent region's seed. If the physics pushed it past that
+       boundary, snap it back just inside. */
+    const REGION_MARGIN = 10;
+    const enforceContainment = (n: any) => {
+      const r = n.regionId;
+      const own = regions[r].seed;
+      const neighborIds = [(r - 1 + REGION_COUNT) % REGION_COUNT, (r + 1) % REGION_COUNT];
+      for (const otherId of neighborIds) {
+        const other = regions[otherId].seed;
+        const dx = other.x - own.x, dy = other.y - own.y;
+        const dLen2 = dx*dx + dy*dy;
+        if (dLen2 < 1) continue;
+        const mx = (own.x + other.x) / 2, my = (own.y + other.y) / 2;
+        const relx = n.x - mx, rely = n.y - my;
+        const proj = relx*dx + rely*dy; // >0 means leaning toward "other"
+        const marginTerm = REGION_MARGIN * Math.sqrt(dLen2);
+        if (proj > -marginTerm) {
+          const excess = proj + marginTerm;
+          const factor = excess / dLen2;
+          n.x -= dx * factor;
+          n.y -= dy * factor;
+          n.vx *= 0.3; n.vy *= 0.3;
+        }
+      }
+    };
 
     /* ---- Global rotation ---- */
     let globalAngle = 0;
@@ -384,16 +493,19 @@ function NeuralNetwork() {
 
     /* ---- Init: size canvas then place nodes ---- */
     resize(); // sets canvas.width/height properly
-    // Now place home positions with correct canvas size
     nodes.forEach(n => {
       const c = center();
       n.homeX = c.x + Math.cos(n.regionAngle) * eRX() * 0.45 + Math.cos(n.spreadAngle) * n.spreadR;
       n.homeY = c.y + Math.sin(n.regionAngle) * eRY() * 0.45 + Math.sin(n.spreadAngle) * n.spreadR;
       n.x = n.homeX; n.y = n.homeY;
     });
+    updateSeeds();
     window.addEventListener("resize", resize);
 
     let frame = 0;
+
+    const HOVER_R  = 28;  // distance counted as "mouse is on the node"
+    const ATTRACT_R = 260 * SCALE; // beyond this, mouse has no pull at all
 
     const draw = () => {
       const c = center(); const rx = eRX(), ry = eRY();
@@ -411,10 +523,11 @@ function NeuralNetwork() {
         n.homeY = regionCY + Math.sin(nodeAngle) * n.spreadR;
       });
 
-      /* Voronoi */
+      /* Voronoi seeds (cheap, every frame) + raster fill (occasional) */
+      updateSeeds();
       if (frame % VORONOI_EVERY === 0) updateGrid();
       drawFill();
-      drawBorders();
+      drawRegionBoundaries();
       drawOuterRing();
 
       /* ---- Node physics ---- */
@@ -427,22 +540,15 @@ function NeuralNetwork() {
         const targetX = n.homeX + wobbleX;
         const targetY = n.homeY + wobbleY;
 
-        // Mouse interaction — attract when far, strong repel when close
+        // Mouse attraction — quadratic falloff: noticeable when close,
+        // faint at medium range, essentially nothing beyond ATTRACT_R.
         const mdx = mouse.x - n.x, mdy = mouse.y - n.y;
         const md  = Math.sqrt(mdx*mdx + mdy*mdy);
-
-        if (md < 200 && md > 0.1) {
-          if (md < 50) {
-            // Strong repulsion on hover
-            const push = (1 - md/50) * 3.5;
-            n.vx -= (mdx/md) * push;
-            n.vy -= (mdy/md) * push;
-          } else {
-            // Gentle attraction in the 50–200px zone
-            const pull = (1 - (md-50)/150) * 0.35;
-            n.vx += (mdx/md) * pull;
-            n.vy += (mdy/md) * pull;
-          }
+        if (md < ATTRACT_R && md > 0.1) {
+          const t = 1 - md / ATTRACT_R;
+          const pull = t * t * 0.55;
+          n.vx += (mdx/md) * pull;
+          n.vy += (mdy/md) * pull;
         }
 
         // Spring toward rotating home
@@ -461,36 +567,53 @@ function NeuralNetwork() {
           n.vx *= -0.25; n.vy *= -0.25;
         }
 
-        // Wave spawn when mouse is close to active node
-        if (n.active && md < 120 && Math.random() < 0.022) spawnWave(n);
-        // Random background activity
-        if (n.active && Math.random() < 0.002) spawnWave(n);
+        // Hard constraint: stay inside the node's own Voronoi region
+        enforceContainment(n);
       }
 
-      /* ---- Waves ---- */
-      for (let i = waves.length-1; i >= 0; i--) {
-        waves[i].radius += waves[i].speed;
-        if (waves[i].radius > waves[i].max) { waves.splice(i, 1); continue; }
-        const w = waves[i];
-        const wAlpha = (1 - w.radius / w.max) * 0.35;
-        // Visual wave ring
-        ctx.beginPath();
-        ctx.arc(w.x, w.y, w.radius, 0, Math.PI*2);
-        ctx.strokeStyle = `rgba(120,200,255,${wAlpha})`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
+      /* ---- Hover detection -> trigger a pulse from the hovered node ---- */
+      let nearestId = -1, nearestD = Infinity;
+      for (const n of nodes) {
+        if (!n.active) continue;
+        const dx = mouse.x - n.x, dy = mouse.y - n.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < HOVER_R && d < nearestD) { nearestD = d; nearestId = n.id; }
+      }
+      if (nearestId !== hoveredNodeId) {
+        hoveredNodeId = nearestId;
+        if (hoveredNodeId !== -1) triggerPulse(nodes[hoveredNodeId]);
+      }
 
-        // Impulse nearby nodes
-        for (const n of nodes) {
-          const dx = n.x - w.x, dy = n.y - w.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          const diff = Math.abs(dist - w.radius);
-          if (diff < 22) {
-            const p = (1 - diff/22) * 0.3;
-            n.vx += (dx/(dist||1)) * p * 0.8;
-            n.vy += (dy/(dist||1)) * p * 0.8;
-            n.pulse    = Math.min(1, n.pulse + p * 1.2);
-            n.activity = Math.min(1, n.activity + p);
+      /* ---- Process pulses: propagate from the hovered node to its
+         adjacent neighbors only, decaying with each hop. No visuals. ---- */
+      for (let i = pulses.length-1; i >= 0; i--) {
+        const p = pulses[i];
+        p.delay -= 1;
+        if (p.delay > 0) continue;
+        const n = p.node;
+        n.pulse    = Math.max(n.pulse, p.strength);
+        n.activity = Math.max(n.activity, p.strength);
+        if (p.from !== n) {
+          const dx = n.x - p.from.x, dy = n.y - p.from.y;
+          const d = Math.sqrt(dx*dx+dy*dy) || 1;
+          const imp = p.strength * 0.6;
+          n.vx += (dx/d) * imp;
+          n.vy += (dy/d) * imp;
+        }
+        pulses.splice(i, 1);
+        if (p.depth < 2 && p.strength > 0.15) {
+          for (const other of nodes) {
+            if (other === n) continue;
+            const dx = other.x - n.x, dy = other.y - n.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 160) {
+              pulses.push({
+                from: n, node: other,
+                strength: p.strength * 0.55,
+                delay: Math.max(2, Math.round(dist / 12)),
+                depth: p.depth + 1,
+              });
+            }
           }
         }
       }
@@ -612,6 +735,40 @@ function NeuralNetwork() {
    ============================================================ */
 function TimelinePage() {
   const [hover, setHover] = useState<number | null>(null);
+  const [entryPage, setEntryPage] = useState<Record<number, number>>({});
+  const pathRef = useRef<SVGPathElement>(null);
+  const glowPathRef = useRef<SVGPathElement>(null);
+  const nodeRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Slow, organic undulation of the curve + the nodes that ride near it —
+  // like a calm one-dimensional creature gently drifting, not snapping.
+  useEffect(() => {
+    let raf: number;
+    const basePoints = missions.map((m, i) => ({
+      x: (i / (missions.length - 1)) * (TIMELINE_W - 80) + 40,
+      y: m.yBase,
+    }));
+
+    const animate = (time: number) => {
+      const pts = basePoints.map((p, i) => ({
+        x: p.x,
+        y: p.y
+          + Math.sin(time * 0.00035 + i * 0.9) * 10
+          + Math.sin(time * 0.00015 + i * 1.6) * 5,
+      }));
+      const d = catmullRom2bezier(pts);
+      if (pathRef.current) pathRef.current.setAttribute("d", d);
+      if (glowPathRef.current) glowPathRef.current.setAttribute("d", d);
+      nodeRefs.current.forEach((el, i) => {
+        if (!el) return;
+        const y = pts[i].y + missions[i].offset;
+        el.style.top = `${(y / TIMELINE_H) * 100}%`;
+      });
+      raf = requestAnimationFrame(animate);
+    };
+    raf = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   return (
     <section className="timelineSection">
@@ -621,8 +778,8 @@ function TimelinePage() {
       </div>
 
       <div className="timelineTrack">
-        {/* Curved connecting path */}
-        <svg className="timelineSVG" viewBox="0 0 1000 260" preserveAspectRatio="none">
+        {/* Gently undulating connecting path */}
+        <svg className="timelineSVG" viewBox={`0 0 ${TIMELINE_W} ${TIMELINE_H}`} preserveAspectRatio="none">
           <defs>
             <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
               {missions.map((m, i) => (
@@ -639,46 +796,64 @@ function TimelinePage() {
               <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
           </defs>
-          {/* Wavy baseline */}
-          <path
-            d="M 30 160 C 150 80, 250 200, 380 130 S 550 60, 680 140 S 820 200, 970 110"
-            fill="none"
-            stroke="url(#lineGrad)"
-            strokeWidth="1.5"
-            strokeDasharray="6 5"
-          />
+          {/* Soft glow trail beneath the line */}
+          <path ref={glowPathRef} fill="none" stroke="url(#lineGrad)" strokeWidth="6" opacity="0.12" filter="url(#glow)" />
+          {/* Main wavy line, animated via ref each frame */}
+          <path ref={pathRef} fill="none" stroke="url(#lineGrad)" strokeWidth="1.5" strokeDasharray="6 5" />
         </svg>
 
-        {/* Nodes mapped to curve points */}
+        {/* Nodes float close to — but not pinned to — the curve */}
         {missions.map((m, i) => {
-          // Approximate y positions matching the SVG curve
-          const yOffsets = [160, 80, 200, 130, 60, 110];
-          const xPct = (i / (missions.length - 1)) * 88 + 3; // 3%–91%
-          const yPct = (yOffsets[i] / 260) * 100;
+          const bx = (i / (missions.length - 1)) * (TIMELINE_W - 80) + 40;
+          const xPct = (bx / TIMELINE_W) * 100;
+          const yPct = ((m.yBase + m.offset) / TIMELINE_H) * 100;
+          const page = entryPage[i] || 0;
+          const entry = m.entries[page] || m.entries[0];
 
           return (
             <div
               key={i}
-              className={`tlNode ${m.status.toLowerCase()} ${hover === i ? "tlHovered" : ""}`}
-              style={{ left: `${xPct}%`, top: `${yPct}%` }}
+              ref={el => { nodeRefs.current[i] = el; }}
+              className={`tlNode ${entry.status.toLowerCase()} ${hover === i ? "tlHovered" : ""}`}
+              style={{ left: `${xPct}%`, top: `${yPct}%`, ["--hue" as any]: m.hue }}
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
             >
               {/* Outer ring pulse for ACTIVE */}
-              {m.status === "ACTIVE" && <div className="tlPulseRing" style={{ ["--hue" as any]: m.hue }} />}
+              {entry.status === "ACTIVE" && <div className="tlPulseRing" />}
 
               {/* Dot */}
-              <div className="tlDot" style={{ ["--hue" as any]: m.hue }} />
+              <div className="tlDot" />
 
               {/* Year chip */}
               <div className="tlYear" style={{ color: `hsl(${m.hue},65%,72%)` }}>{m.year}</div>
 
               {/* Card — alternates above/below */}
               {hover === i && (
-                <div className={`tlCard ${i % 2 === 0 ? "above" : "below"}`} style={{ ["--hue" as any]: m.hue }}>
-                  <div className="tlCardStatus">{m.status}</div>
-                  <div className="tlCardTitle">{m.title}</div>
-                  <div className="tlCardDesc">{m.desc}</div>
+                <div className={`tlCard ${i % 2 === 0 ? "above" : "below"}`}>
+                  <div className="tlCardImage">
+                    {entry.image
+                      ? <img src={entry.image} alt={entry.title} />
+                      : <div className="tlImagePlaceholder">IMAGE</div>}
+                  </div>
+                  <div className="tlCardBody">
+                    <div className="tlCardStatus">{entry.status}</div>
+                    <div className="tlCardTitle">{entry.title}</div>
+                    <div className="tlCardDesc">{entry.desc}</div>
+                  </div>
+                  {m.entries.length > 1 && (
+                    <div className="tlCardPagination">
+                      {m.entries.map((_, p) => (
+                        <button
+                          key={p}
+                          className={`tlPageDot ${p === page ? "active" : ""}`}
+                          onMouseEnter={(e) => { e.stopPropagation(); setEntryPage(prev => ({ ...prev, [i]: p })); }}
+                          onClick={(e) => { e.stopPropagation(); setEntryPage(prev => ({ ...prev, [i]: p })); }}
+                          aria-label={`Show entry ${p + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

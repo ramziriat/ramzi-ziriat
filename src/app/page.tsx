@@ -2,108 +2,268 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/* ---------------- MISSION DATA ---------------- */
+/* ============================================================
+   MISSION DATA
+   ============================================================ */
 const missions = [
-  { year: 2001, title: "Birth", desc: "System initialization", status: "DONE" },
-  { year: 2015, title: "Scientific curiosity", desc: "First structured cognition", status: "DONE" },
-  { year: 2023, title: "Aviation exploration", desc: "Flight systems trajectory", status: "DONE" },
-  { year: 2026, title: "Research phase", desc: "Astrophysics + Cosmology + Philosophy", status: "ACTIVE" },
-  { year: 2028, title: "Engineering + M2", desc: "Aerospace integration", status: "PLANNED" },
-  { year: 2035, title: "Exploration synthesis", desc: "Unified exploration doctrine", status: "FUTURE" },
+  {
+    year: 2001, title: "System Boot", desc: "Born in Algeria. First breath, first curiosity.",
+    status: "DONE", hue: 200,
+  },
+  {
+    year: 2015, title: "First Signal", desc: "Structured scientific thought ignites. Physics, math, the cosmos.",
+    status: "DONE", hue: 210,
+  },
+  {
+    year: 2023, title: "Lift-off", desc: "Solo flight hours begin. PPL pathway. Aviation becomes reality.",
+    status: "DONE", hue: 240,
+  },
+  {
+    year: 2026, title: "Deep Field", desc: "Astrophysics · Cosmology · Philosophy of Science. Research phase active.",
+    status: "ACTIVE", hue: 280,
+  },
+  {
+    year: 2028, title: "Integration", desc: "Aerospace Engineering + M2. Propulsion meets spaceflight.",
+    status: "PLANNED", hue: 260,
+  },
+  {
+    year: 2035, title: "Unified Doctrine", desc: "Pilot. Scientist. Engineer. One exploration philosophy.",
+    status: "FUTURE", hue: 300,
+  },
 ];
 
-const ACTIVE_LABELS = [
-  "Aerospace", "Astrophysics", "Cosmology", "Philosophy", "Pilot",
-  "Propulsion", "Orbital Mechanics", "Quantum Gravity",
-  "Aviation Systems", "Exoplanets", "Spaceflight", "Relativity",
+/* ============================================================
+   VORONOI NEURAL NETWORK CONSTANTS
+   ============================================================ */
+const GRID_RES      = 10;
+const VORONOI_EVERY = 3;
+const REGION_COUNT  = 5;
+
+// 5 thematic regions — each has domain nodes
+const REGION_DEFS = [
+  {
+    name: "Astrophysics",
+    hue: 200,
+    labels: ["Pulsars", "Neutron Stars", "Observation", "Spectroscopy", "Astrophotography"],
+  },
+  {
+    name: "Cosmology",
+    hue: 260,
+    labels: ["Dark Matter", "CMB", "Inflation", "Large-Scale Structure", "Redshift"],
+  },
+  {
+    name: "Aerospace",
+    hue: 170,
+    labels: ["Propulsion", "Orbital Mechanics", "Re-entry", "Avionics", "Structures"],
+  },
+  {
+    name: "Philosophy",
+    hue: 300,
+    labels: ["Epistemology", "Science Ethics", "Consciousness", "Logic", "Metaphysics"],
+  },
+  {
+    name: "Aviation",
+    hue: 210,
+    labels: ["PPL", "Navigation", "Meteorology", "Flight Dynamics", "Airspace"],
+  },
 ];
 
-const TOTAL_NODES    = 155;
-const REGION_COUNT   = 8;
-const GRID_RES       = 10;   // px per Voronoi cell — bigger = faster
-const VORONOI_EVERY  = 3;    // recompute grid every N frames
-const NETWORK_RADIUS = 500;  // clip circle radius — Voronoi drawn only inside
-const REGION_HUES    = [200, 240, 280, 170, 210, 260, 190, 300];
+const INACTIVE_PER_REGION = 6; // extra background nodes per region
+const TOTAL_NODES = REGION_COUNT * (REGION_DEFS[0].labels.length + INACTIVE_PER_REGION);
 
-/* Fast HSL→RGB (h/s/l all 0-1) */
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
   const p = 2 * l - q;
   const f = (t: number) => {
     if (t < 0) t += 1; if (t > 1) t -= 1;
-    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/6) return p + (q-p)*6*t;
     if (t < 1/2) return q;
-    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    if (t < 2/3) return p + (q-p)*(2/3-t)*6;
     return p;
   };
   return [Math.round(f(h+1/3)*255), Math.round(f(h)*255), Math.round(f(h-1/3)*255)];
 }
 
-/* ---------------- NEURAL NETWORK ---------------- */
+/* ============================================================
+   COUNTER HOOK — ease in/out (slow-fast-slow)
+   ============================================================ */
+function useCounter(target: number, duration = 2800, active = true) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const start = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      // ease in-out cubic
+      const e = p < 0.5 ? 4*p*p*p : 1 - Math.pow(-2*p+2,3)/2;
+      setVal(Math.round(e * target));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration, active]);
+  return val;
+}
+
+/* ============================================================
+   FLIGHT HOURS WIDGET
+   ============================================================ */
+function FlightHoursWidget() {
+  const [expanded, setExpanded] = useState(false);
+  const [countActive, setCountActive] = useState(false);
+
+  const total   = useCounter(100, 2400, countActive);
+  const planeur = useCounter(50,  2800, expanded && countActive);
+  const avion   = useCounter(50,  2800, expanded && countActive);
+
+  useEffect(() => {
+    const t = setTimeout(() => setCountActive(true), 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div
+      className={`flightWidget ${expanded ? "expanded" : ""}`}
+      onMouseEnter={() => setExpanded(true)}
+      onMouseLeave={() => setExpanded(false)}
+    >
+      <div className="flightMain">
+        <span className="flightNum">{total}</span>
+        <span className="flightLabel">FLIGHT HOURS</span>
+      </div>
+      {expanded && (
+        <div className="flightBreakdown">
+          <div className="flightRow">
+            <span className="flightSub">PLANEUR</span>
+            <span className="flightSubNum">{planeur}h</span>
+          </div>
+          <div className="flightDivider" />
+          <div className="flightRow">
+            <span className="flightSub">AVION</span>
+            <span className="flightSubNum">{avion}h</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   NEURAL NETWORK CANVAS
+   ============================================================ */
 function NeuralNetwork() {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = ref.current!;
     const ctx    = canvas.getContext("2d")!;
-
-    /* Offscreen canvas for Voronoi fill (drawn at grid resolution, blitted scaled) */
-    const offFill   = document.createElement("canvas");
+    const offFill    = document.createElement("canvas");
     const offFillCtx = offFill.getContext("2d")!;
+
+    // Smooth fill canvas (2× grid for bilinear feel)
+    const FILL_RES = GRID_RES * 2;
 
     const resize = () => {
       const r = canvas.getBoundingClientRect();
       canvas.width  = r.width;
       canvas.height = r.height;
-      offFill.width  = Math.ceil(r.width  / GRID_RES);
-      offFill.height = Math.ceil(r.height / GRID_RES);
+      offFill.width  = Math.ceil(r.width  / FILL_RES);
+      offFill.height = Math.ceil(r.height / FILL_RES);
     };
     resize();
     window.addEventListener("resize", resize);
 
-    const mouse  = { x: -9999, y: -9999 };
+    const mouse = { x: -9999, y: -9999 };
     const center = () => ({ x: canvas.width / 2, y: canvas.height / 2 });
 
-    /* --- Nodes --- */
-    const nodes: any[] = [];
-    for (let i = 0; i < TOTAL_NODES; i++) {
-      const angle  = Math.random() * Math.PI * 2;
-      const radius = (Math.pow(Math.random(), 1.6) * 220 + 40) * 2.0;
-      const c = center();
-      nodes.push({
-        id: i, angle, radius,
-        x: c.x + Math.cos(angle) * radius,
-        y: c.y + Math.sin(angle) * radius,
-        vx: 0, vy: 0,
-        active: i < ACTIVE_LABELS.length,
-        label: i < ACTIVE_LABELS.length ? ACTIVE_LABELS[i] : "",
-        pulse: 0, activity: 0, regionId: 0,
-      });
-    }
+    /* Ellipse radii — fits page */
+    const eRX = () => Math.min(canvas.width  * 0.42, 480);
+    const eRY = () => Math.min(canvas.height * 0.40, 380);
 
-    /* --- Regions --- */
-    const regions: any[] = Array.from({ length: REGION_COUNT }, (_, id) => ({
-      id, seed: { x: 0, y: 0 }, nodeIds: [], hue: REGION_HUES[id],
-    }));
-    const shuffled = [...nodes].sort(() => Math.random() - 0.5);
-    shuffled.forEach((n, i) => {
-      const rid = i % REGION_COUNT;
-      regions[rid].nodeIds.push(n.id);
-      n.regionId = rid;
+    /* Point-in-ellipse test */
+    const inEllipse = (px: number, py: number, cx: number, cy: number, rx: number, ry: number) => {
+      const dx = (px - cx) / rx, dy = (py - cy) / ry;
+      return dx*dx + dy*dy <= 1;
+    };
+
+    /* ---- Build nodes ---- */
+    const nodes: any[] = [];
+
+    REGION_DEFS.forEach((rDef, rid) => {
+      // Place region center in ellipse at evenly-spaced angle
+      const regionAngle = (rid / REGION_COUNT) * Math.PI * 2;
+      const cx = () => center().x + Math.cos(regionAngle) * eRX() * 0.45;
+      const cy = () => center().y + Math.sin(regionAngle) * eRY() * 0.45;
+
+      // Active (domain) nodes — clustered near region center
+      rDef.labels.forEach((label, li) => {
+        const spreadAngle = (li / rDef.labels.length) * Math.PI * 2 + regionAngle;
+        const spreadR = 60 + Math.random() * 60;
+        nodes.push({
+          id: nodes.length,
+          regionId: rid,
+          active: true,
+          label,
+          baseX: cx() + Math.cos(spreadAngle) * spreadR,
+          baseY: cy() + Math.sin(spreadAngle) * spreadR,
+          x: 0, y: 0, vx: 0, vy: 0,
+          angle: spreadAngle,
+          orbitR: spreadR,
+          orbitSpeed: 0.0003 + Math.random() * 0.0003,
+          orbitPhase: Math.random() * Math.PI * 2,
+          pulse: 0, activity: 0,
+        });
+      });
+
+      // Inactive background nodes — scattered wider in region
+      for (let i = 0; i < INACTIVE_PER_REGION; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 20 + Math.random() * 110;
+        nodes.push({
+          id: nodes.length,
+          regionId: rid,
+          active: false,
+          label: "",
+          baseX: cx() + Math.cos(a) * r,
+          baseY: cy() + Math.sin(a) * r,
+          x: 0, y: 0, vx: 0, vy: 0,
+          angle: a,
+          orbitR: r,
+          orbitSpeed: 0.0002 + Math.random() * 0.0002,
+          orbitPhase: Math.random() * Math.PI * 2,
+          pulse: 0, activity: 0,
+        });
+      }
     });
 
-    /* --- Voronoi grid (grid-resolution Uint8Array) --- */
+    // Initialize positions
+    nodes.forEach(n => { n.x = n.baseX; n.y = n.baseY; });
+
+    /* ---- Region seed positions (centroids, recomputed per frame) ---- */
+    const regions = REGION_DEFS.map((rDef, id) => ({
+      id, hue: rDef.hue, name: rDef.name,
+      seed: { x: 0, y: 0 },
+      nodeIds: nodes.filter(n => n.regionId === id).map(n => n.id),
+      rgba: hslToRgb(rDef.hue / 360, 0.55, 0.14),
+    }));
+
+    /* ---- Voronoi grid ---- */
     let gW = offFill.width, gH = offFill.height;
     let grid = new Uint8Array(gW * gH);
-
-    /* Precompute per-region RGBA so fill loop avoids hslToRgb every frame */
-    const regionRGBA: [number,number,number][] = regions.map(r => hslToRgb(r.hue/360, 0.5, 0.13));
+    let fillImageData = offFillCtx.createImageData(gW, gH);
 
     const updateGrid = () => {
       gW = offFill.width; gH = offFill.height;
-      if (grid.length !== gW * gH) grid = new Uint8Array(gW * gH);
+      if (grid.length !== gW * gH) {
+        grid = new Uint8Array(gW * gH);
+        fillImageData = offFillCtx.createImageData(gW, gH);
+      }
 
-      /* Update seeds */
+      const c = center();
+      const rx = eRX(), ry = eRY();
+
+      // Update seeds
       for (const r of regions) {
         let sx = 0, sy = 0;
         for (const nid of r.nodeIds) { sx += nodes[nid].x; sy += nodes[nid].y; }
@@ -111,18 +271,16 @@ function NeuralNetwork() {
         r.seed.x = sx / n; r.seed.y = sy / n;
       }
 
-      const c = center();
-      const R2 = NETWORK_RADIUS * NETWORK_RADIUS;
-
-      /* Nearest-seed Voronoi, clipped to circle */
+      // Fill grid
       for (let gy = 0; gy < gH; gy++) {
         for (let gx = 0; gx < gW; gx++) {
-          const px = gx * GRID_RES + GRID_RES / 2;
-          const py = gy * GRID_RES + GRID_RES / 2;
-          const dx0 = px - c.x, dy0 = py - c.y;
+          const px = gx * FILL_RES + FILL_RES / 2;
+          const py = gy * FILL_RES + FILL_RES / 2;
 
-          /* Outside clip circle → sentinel 255 (transparent) */
-          if (dx0*dx0 + dy0*dy0 > R2) { grid[gy*gW + gx] = 255; continue; }
+          if (!inEllipse(px, py, c.x, c.y, rx, ry)) {
+            grid[gy * gW + gx] = 255;
+            continue;
+          }
 
           let best = Infinity, bestId = 0;
           for (const r of regions) {
@@ -130,94 +288,175 @@ function NeuralNetwork() {
             const d2 = dx*dx + dy*dy;
             if (d2 < best) { best = d2; bestId = r.id; }
           }
-          grid[gy*gW + gx] = bestId;
+          grid[gy * gW + gx] = bestId;
         }
       }
     };
 
-    /* Draw fill by writing to offscreen ImageData at grid resolution, then drawImage scaled */
-    let fillImageData = offFillCtx.createImageData(gW, gH);
-
+    /* ---- Smooth Voronoi fill via distance-weighted color blend ---- */
     const drawFill = () => {
       const W = gW, H = gH;
-      if (fillImageData.width !== W || fillImageData.height !== H)
-        fillImageData = offFillCtx.createImageData(W, H);
-
       const d = fillImageData.data;
+      const c = center();
+      const rx = eRX(), ry = eRY();
+
       for (let i = 0; i < W * H; i++) {
         const rid = grid[i];
         const base = i * 4;
-        if (rid === 255) { d[base+3] = 0; continue; }   // outside → transparent
-        const [r,g,b] = regionRGBA[rid];
-        d[base] = r; d[base+1] = g; d[base+2] = b; d[base+3] = 32;
+        if (rid === 255) { d[base+3] = 0; continue; }
+
+        // Soft edge: fade alpha near ellipse boundary
+        const px = (i % W) * FILL_RES + FILL_RES / 2;
+        const py = Math.floor(i / W) * FILL_RES + FILL_RES / 2;
+        const edgeDist = 1 - Math.sqrt(
+          Math.pow((px - c.x) / rx, 2) + Math.pow((py - c.y) / ry, 2)
+        );
+        const alpha = Math.min(1, edgeDist * 6) * 48; // ramp at edge
+
+        const [r, g, b] = regions[rid].rgba;
+        d[base] = r; d[base+1] = g; d[base+2] = b;
+        d[base+3] = Math.round(alpha);
       }
+
       offFillCtx.putImageData(fillImageData, 0, 0);
 
-      /* Blit scaled to main canvas — browser uses GPU for this */
       ctx.save();
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "low";
+      ctx.imageSmoothingQuality = "high";
+
+      // Clip draw to ellipse so fill never bleeds outside
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.clip();
+
       ctx.drawImage(offFill, 0, 0, canvas.width, canvas.height);
       ctx.restore();
     };
 
-    /* Draw borders by scanning adjacent cells — only inside the clip circle */
+    /* ---- Smooth Voronoi borders via Gaussian-blurred edge detection ---- */
     const drawBorders = () => {
-      const W = gW, H = gH;
-      ctx.lineWidth = 1.2;
-      ctx.setLineDash([3, 5]);
+      const W = Math.ceil(canvas.width  / GRID_RES);
+      const H = Math.ceil(canvas.height / GRID_RES);
 
+      // We need a border grid at GRID_RES (finer than fill grid)
+      // Reuse the fill grid but at GRID_RES scale by sampling
+      const c = center();
+      const rx = eRX(), ry = eRY();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.clip();
+
+      // Draw smooth border: for each boundary pixel, draw a soft glow line
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+
+      // Sample fine grid for borders
       for (let gy = 0; gy < H - 1; gy++) {
         for (let gx = 0; gx < W - 1; gx++) {
-          const c0  = grid[gy * W + gx];
-          const cr  = grid[gy * W + gx + 1];
-          const cb  = grid[(gy+1) * W + gx];
+          const px = gx * GRID_RES + GRID_RES / 2;
+          const py = gy * GRID_RES + GRID_RES / 2;
 
-          /* Skip if either side is outside */
-          if (c0 === 255) continue;
+          if (!inEllipse(px, py, c.x, c.y, rx, ry)) continue;
 
-          const px = gx * GRID_RES, py = gy * GRID_RES;
-
-          if (cr !== 255 && c0 !== cr) {
-            const avg = (REGION_HUES[c0] + REGION_HUES[cr]) / 2;
-            ctx.strokeStyle = `hsla(${avg},65%,78%,0.4)`;
-            ctx.beginPath();
-            ctx.moveTo(px + GRID_RES, py);
-            ctx.lineTo(px + GRID_RES, py + GRID_RES);
-            ctx.stroke();
+          // Find nearest two regions at this point
+          let d1 = Infinity, d2 = Infinity, r1 = 0, r2 = 1;
+          for (const r of regions) {
+            const dx = px - r.seed.x, dy = py - r.seed.y;
+            const d = dx*dx + dy*dy;
+            if (d < d1) { d2 = d1; r2 = r1; d1 = d; r1 = r.id; }
+            else if (d < d2) { d2 = d; r2 = r.id; }
           }
-          if (cb !== 255 && c0 !== cb) {
-            const avg = (REGION_HUES[c0] + REGION_HUES[cb]) / 2;
-            ctx.strokeStyle = `hsla(${avg},65%,78%,0.4)`;
+
+          // Proximity to Voronoi boundary = how close d1 and d2 are
+          const borderProx = 1 - (Math.sqrt(d2) - Math.sqrt(d1)) / (GRID_RES * 3);
+          if (borderProx > 0.6) {
+            const alpha = Math.pow((borderProx - 0.6) / 0.4, 1.5) * 0.85;
+            const h1 = REGION_DEFS[r1].hue, h2 = REGION_DEFS[r2].hue;
+            const avgH = (h1 + h2) / 2;
+            ctx.strokeStyle = `hsla(${avgH},75%,80%,${alpha})`;
             ctx.beginPath();
-            ctx.moveTo(px,            py + GRID_RES);
-            ctx.lineTo(px + GRID_RES, py + GRID_RES);
+            ctx.arc(px, py, GRID_RES * 0.6, 0, Math.PI * 2);
             ctx.stroke();
           }
         }
       }
-      ctx.setLineDash([]);
+
+      ctx.restore();
     };
 
-    /* Draw the outer clip circle border */
+    /* ---- Outer ellipse ring ---- */
     const drawOuterRing = () => {
       const c = center();
+      const rx = eRX(), ry = eRY();
+      ctx.save();
       ctx.beginPath();
-      ctx.arc(c.x, c.y, NETWORK_RADIUS, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(76,201,240,0.18)";
+      ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(76,201,240,0.25)";
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 8]);
       ctx.stroke();
       ctx.setLineDash([]);
+      ctx.restore();
+
+      // Region name labels on the boundary
+      for (const r of regions) {
+        const angle = (r.id / REGION_COUNT) * Math.PI * 2;
+        const lx = c.x + Math.cos(angle) * (rx * 0.78);
+        const ly = c.y + Math.sin(angle) * (ry * 0.78);
+        ctx.save();
+        ctx.font = "9px system-ui";
+        ctx.letterSpacing = "0.12em";
+        ctx.fillStyle = `hsla(${r.hue},70%,72%,0.6)`;
+        ctx.textAlign = "center";
+        ctx.fillText(REGION_DEFS[r.id].name.toUpperCase(), lx, ly);
+        ctx.restore();
+      }
     };
 
-    /* --- Signals & waves --- */
-    const signals: any[] = [];
-    const waves:   any[] = [];
-    const spawnSignal = (a: any, b: any, bias = 1) =>
-      signals.push({ a, b, t: 0, speed: (0.012 + Math.random()*0.016)*bias*0.7 });
+    /* ---- Signals (travel along edges only) ---- */
+    interface Signal { a: any; b: any; t: number; speed: number; color: string }
+    const signals: Signal[] = [];
+    // Edge list: pairs of node indices that are "connected"
+    const edges: [number, number][] = [];
+
+    // Build edges once (within-region and some cross-region)
+    const buildEdges = () => {
+      edges.length = 0;
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const d = Math.sqrt(dx*dx + dy*dy);
+          if (d < 160) edges.push([i, j]);
+        }
+      }
+    };
+
+    // Rebuild edges every 60 frames
+    let edgeTimer = 0;
+
+    const spawnSignal = (edgeIdx: number) => {
+      if (edges.length === 0) return;
+      const [ai, bi] = edges[edgeIdx % edges.length];
+      const a = nodes[ai], b = nodes[bi];
+      const sameRegion = a.regionId === b.regionId;
+      const hue = REGION_DEFS[a.regionId].hue;
+      signals.push({
+        a, b,
+        t: 0,
+        speed: 0.008 + Math.random() * 0.012,
+        color: sameRegion
+          ? `hsla(${hue},90%,80%,0.9)`
+          : "rgba(180,220,255,0.7)",
+      });
+    };
+
+    /* ---- Waves ---- */
+    const waves: any[] = [];
     const spawnWave = (origin: any) =>
-      waves.push({ origin, radius: 0, speed: 1.6 + Math.random()*0.6, max: 270 });
+      waves.push({ origin, radius: 0, speed: 1.4 + Math.random() * 0.6, max: 220 });
 
     const onMove = (e: MouseEvent) => {
       const r = canvas.getBoundingClientRect();
@@ -225,142 +464,174 @@ function NeuralNetwork() {
     };
     canvas.addEventListener("mousemove", onMove);
 
-    /* --- Main draw loop --- */
+    /* ============================================================
+       MAIN DRAW LOOP
+       ============================================================ */
     let frame = 0;
 
     const draw = () => {
       const c = center();
+      const rx = eRX(), ry = eRY();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       frame++;
 
-      /* Voronoi (throttled) */
+      /* Voronoi */
       if (frame % VORONOI_EVERY === 0) updateGrid();
       drawFill();
       drawBorders();
       drawOuterRing();
 
-      /* Node physics */
-      let mouseOnNet = false;
+      /* Node physics — orbit around baseX/baseY, soft ellipse constraint */
       for (const n of nodes) {
-        const dx = mouse.x - n.x, dy = mouse.y - n.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < 260) mouseOnNet = true;
+        n.orbitPhase += n.orbitSpeed;
 
-        const inf = dist < 240 ? (1 - dist/240) * 0.22 : 0;
-        n.vx += dx * inf * 0.01;
-        n.vy += dy * inf * 0.01;
+        // Gently drift toward orbit point
+        const tx = n.baseX + Math.cos(n.orbitPhase) * (n.orbitR * 0.18);
+        const ty = n.baseY + Math.sin(n.orbitPhase) * (n.orbitR * 0.18);
 
-        const ox = c.x + Math.cos(n.angle) * n.radius;
-        const oy = c.y + Math.sin(n.angle) * n.radius;
-        n.vx += (ox - n.x) * 0.015; n.vy += (oy - n.y) * 0.015;
-        n.vx *= 0.92; n.vy *= 0.92;
+        // Mouse repulsion
+        const mdx = n.x - mouse.x, mdy = n.y - mouse.y;
+        const md = Math.sqrt(mdx*mdx + mdy*mdy);
+        if (md < 180) {
+          const push = (1 - md/180) * 1.2;
+          n.vx += (mdx/md) * push;
+          n.vy += (mdy/md) * push;
+        }
+
+        n.vx += (tx - n.x) * 0.018;
+        n.vy += (ty - n.y) * 0.018;
+        n.vx *= 0.88; n.vy *= 0.88;
         n.x  += n.vx;  n.y  += n.vy;
-        n.angle += 0.00055;
 
-        if (n.active && dist < 160 && Math.random() < 0.03) spawnWave(n);
-      }
+        // Hard ellipse clamp
+        const ndx = (n.x - c.x) / rx, ndy = (n.y - c.y) / ry;
+        const nd = Math.sqrt(ndx*ndx + ndy*ndy);
+        if (nd > 0.95) {
+          const scale = 0.93 / nd;
+          n.x = c.x + ndx * rx * scale;
+          n.y = c.y + ndy * ry * scale;
+          n.vx *= -0.3; n.vy *= -0.3;
+        }
 
-      /* Signals */
-      if (Math.random() < 0.010) {
-        const a = nodes[Math.floor(Math.random()*nodes.length)];
-        const b = nodes[Math.floor(Math.random()*nodes.length)];
-        if (a !== b) spawnSignal(a, b);
-      }
-      if (mouseOnNet && Math.random() < 0.025) {
-        const a = nodes[Math.floor(Math.random()*nodes.length)];
-        const b = nodes[Math.floor(Math.random()*nodes.length)];
-        if (a !== b) spawnSignal(a, b);
-      }
-      for (const n of nodes) {
-        const dx = mouse.x - n.x, dy = mouse.y - n.y;
-        if (Math.sqrt(dx*dx + dy*dy) < 28 && Math.random() < 0.08)
-          spawnSignal(n, nodes[Math.floor(Math.random()*nodes.length)], n.active ? 1.2 : 1);
+        if (n.active) {
+          const dist = Math.sqrt(mdx*mdx + mdy*mdy);
+          if (dist < 140 && Math.random() < 0.025) spawnWave(n);
+        }
       }
 
-      for (let i = signals.length-1; i >= 0; i--) {
-        signals[i].t += signals[i].speed;
-        if (signals[i].t >= 1) signals.splice(i, 1);
+      /* Rebuild edges periodically */
+      edgeTimer++;
+      if (edgeTimer % 60 === 0) buildEdges();
+
+      /* Spawn signals on existing edges */
+      if (edges.length > 0 && Math.random() < 0.04) {
+        spawnSignal(Math.floor(Math.random() * edges.length));
       }
+
+      /* Wave → node impulses */
       for (let i = waves.length-1; i >= 0; i--) {
         waves[i].radius += waves[i].speed;
-        if (waves[i].radius > waves[i].max) waves.splice(i, 1);
-      }
-
-      /* Wave impulses */
-      for (const w of waves) {
+        if (waves[i].radius > waves[i].max) { waves.splice(i, 1); continue; }
+        const w = waves[i];
         for (const n of nodes) {
           const dx = n.x - w.origin.x, dy = n.y - w.origin.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
           const diff = Math.abs(dist - w.radius);
-          if (diff < 22) {
-            const pulse = (1 - diff/22) * 0.3;
-            n.vx += (dx/(dist||1)) * pulse * 0.1;
-            n.vy += (dy/(dist||1)) * pulse * 0.1;
-            n.pulse    = Math.min(1, n.pulse + pulse);
-            n.activity = Math.min(1, n.activity + pulse);
+          if (diff < 18) {
+            const p = (1 - diff/18) * 0.25;
+            n.pulse    = Math.min(1, n.pulse + p);
+            n.activity = Math.min(1, n.activity + p);
           }
         }
       }
 
-      /* Links */
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i+1; j < nodes.length; j++) {
-          const a = nodes[i], b = nodes[j];
-          const dx = a.x-b.x, dy = a.y-b.y;
-          const d = Math.sqrt(dx*dx + dy*dy);
-          if (d < 190) {
-            const same = a.regionId === b.regionId;
-            ctx.strokeStyle = same
-              ? `hsla(${REGION_HUES[a.regionId]},70%,70%,0.18)`
-              : "rgba(76,201,240,0.07)";
-            ctx.lineWidth = same ? 1 : 0.5;
-            ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-          }
-        }
+      /* Update signals */
+      for (let i = signals.length-1; i >= 0; i--) {
+        signals[i].t += signals[i].speed;
+        if (signals[i].t >= 1) signals.splice(i, 1);
       }
 
-      /* Signal dots */
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = "rgba(120,200,255,0.5)";
-      ctx.fillStyle   = "rgba(120,200,255,0.8)";
+      /* Draw edges */
+      for (const [ai, bi] of edges) {
+        const a = nodes[ai], b = nodes[bi];
+        const dx = a.x-b.x, dy = a.y-b.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        const same = a.regionId === b.regionId;
+        const alpha = same ? 0.22 : 0.07;
+        const hue   = same ? REGION_DEFS[a.regionId].hue : 200;
+        const fade  = Math.max(0, 1 - d / 160);
+        ctx.strokeStyle = `hsla(${hue},60%,72%,${alpha * fade})`;
+        ctx.lineWidth = same ? 0.8 : 0.4;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+
+      /* Draw signals — travel along edge, glow tail */
       for (const s of signals) {
-        const x = s.a.x + (s.b.x-s.a.x)*s.t;
-        const y = s.a.y + (s.b.y-s.a.y)*s.t;
-        ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI*2); ctx.fill();
+        const x = s.a.x + (s.b.x - s.a.x) * s.t;
+        const y = s.a.y + (s.b.y - s.a.y) * s.t;
+
+        // Tail
+        const tx2 = s.a.x + (s.b.x - s.a.x) * Math.max(0, s.t - 0.12);
+        const ty2 = s.a.y + (s.b.y - s.a.y) * Math.max(0, s.t - 0.12);
+        const grad = ctx.createLinearGradient(tx2, ty2, x, y);
+        grad.addColorStop(0, "rgba(0,0,0,0)");
+        grad.addColorStop(1, s.color);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(tx2, ty2); ctx.lineTo(x, y); ctx.stroke();
+
+        // Head glow
+        ctx.save();
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = s.color;
+        ctx.fillStyle   = "white";
+        ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
       }
-      ctx.shadowBlur = 0;
 
-      /* Nodes */
+      /* Draw nodes */
       for (const n of nodes) {
-        const dx = mouse.x-n.x, dy = mouse.y-n.y;
+        const dx = mouse.x - n.x, dy = mouse.y - n.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        const near  = dist < 110;
-        const hover = dist < 28;
+        const near  = dist < 100;
+        const hover = dist < 22;
 
-        let size = n.active ? 6 : 3;
-        size *= 1 + n.pulse*0.55;
-        if (near)  size *= 1.35;
-        if (hover) size *= 2.0;
-        n.pulse    *= 0.9;
-        n.activity *= 0.9;
+        let size = n.active ? 5.5 : 2.5;
+        size *= 1 + n.pulse * 0.6;
+        if (near)  size *= 1.3;
+        if (hover) size *= 1.8;
+        n.pulse    *= 0.88;
+        n.activity *= 0.88;
 
-        ctx.beginPath();
-        ctx.fillStyle = n.active
-          ? `hsla(${REGION_HUES[n.regionId]},80%,72%,${0.85+n.activity*0.15})`
-          : `hsla(${REGION_HUES[n.regionId]},40%,75%,0.45)`;
-        ctx.arc(n.x, n.y, size, 0, Math.PI*2);
-        ctx.fill();
+        const hue = REGION_DEFS[n.regionId].hue;
 
+        // Outer glow for active nodes
+        if (n.active) {
+          ctx.save();
+          ctx.shadowBlur  = 12 + n.activity * 10;
+          ctx.shadowColor = `hsla(${hue},80%,65%,0.6)`;
+          ctx.fillStyle   = `hsla(${hue},80%,72%,${0.8 + n.activity * 0.2})`;
+          ctx.beginPath(); ctx.arc(n.x, n.y, size, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.fillStyle = `hsla(${hue},35%,65%,0.38)`;
+          ctx.beginPath(); ctx.arc(n.x, n.y, size, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Label
         if (n.active && near) {
-          ctx.fillStyle = hover ? "white" : "rgba(255,255,255,0.75)";
-          ctx.font = hover ? "14px system-ui" : "11px system-ui";
-          ctx.fillText(n.label, n.x+10, n.y+4);
+          ctx.save();
+          ctx.fillStyle = hover ? "white" : `hsla(${hue},60%,90%,0.85)`;
+          ctx.font = hover ? "bold 13px system-ui" : "11px system-ui";
+          ctx.fillText(n.label, n.x + 9, n.y + 4);
+          ctx.restore();
         }
       }
 
       requestAnimationFrame(draw);
     };
 
+    buildEdges();
     updateGrid();
     draw();
 
@@ -373,26 +644,105 @@ function NeuralNetwork() {
   return <canvas ref={ref} className="neural" />;
 }
 
-/* ---------------- PAGE COMPONENT ---------------- */
-export default function Home() {
-  const [page, setPage]   = useState(0);
+/* ============================================================
+   TIMELINE PAGE
+   ============================================================ */
+function TimelinePage() {
   const [hover, setHover] = useState<number | null>(null);
-  const [boot, setBoot]   = useState(true);
-  const [utc, setUtc]     = useState("");
-  const [flightHours, setFlightHours] = useState(0);
 
-  useEffect(() => {
-    const target = 42, start = performance.now();
-    let raf: number;
-    const animate = (t: number) => {
-      const p = Math.min((t-start)/2500, 1);
-      setFlightHours((1 - Math.pow(1-p,4)) * target);
-      if (p < 1) raf = requestAnimationFrame(animate);
-      else setFlightHours(target);
-    };
-    raf = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+  return (
+    <section className="timelineSection">
+      <div className="timelineHeader">
+        <span className="timelineEyebrow">TRAJECTORY</span>
+        <h2 className="timelineTitle">VISION TIMELINE</h2>
+      </div>
+
+      <div className="timelineTrack">
+        {/* Curved connecting path */}
+        <svg className="timelineSVG" viewBox="0 0 1000 260" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              {missions.map((m, i) => (
+                <stop
+                  key={i}
+                  offset={`${(i / (missions.length - 1)) * 100}%`}
+                  stopColor={`hsl(${m.hue},70%,65%)`}
+                  stopOpacity="0.5"
+                />
+              ))}
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+          {/* Wavy baseline */}
+          <path
+            d="M 30 160 C 150 80, 250 200, 380 130 S 550 60, 680 140 S 820 200, 970 110"
+            fill="none"
+            stroke="url(#lineGrad)"
+            strokeWidth="1.5"
+            strokeDasharray="6 5"
+          />
+        </svg>
+
+        {/* Nodes mapped to curve points */}
+        {missions.map((m, i) => {
+          // Approximate y positions matching the SVG curve
+          const yOffsets = [160, 80, 200, 130, 60, 110];
+          const xPct = (i / (missions.length - 1)) * 88 + 3; // 3%–91%
+          const yPct = (yOffsets[i] / 260) * 100;
+
+          return (
+            <div
+              key={i}
+              className={`tlNode ${m.status.toLowerCase()} ${hover === i ? "tlHovered" : ""}`}
+              style={{ left: `${xPct}%`, top: `${yPct}%` }}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+            >
+              {/* Outer ring pulse for ACTIVE */}
+              {m.status === "ACTIVE" && <div className="tlPulseRing" style={{ ["--hue" as any]: m.hue }} />}
+
+              {/* Dot */}
+              <div className="tlDot" style={{ ["--hue" as any]: m.hue }} />
+
+              {/* Year chip */}
+              <div className="tlYear" style={{ color: `hsl(${m.hue},65%,72%)` }}>{m.year}</div>
+
+              {/* Card — alternates above/below */}
+              {hover === i && (
+                <div className={`tlCard ${i % 2 === 0 ? "above" : "below"}`} style={{ ["--hue" as any]: m.hue }}>
+                  <div className="tlCardStatus">{m.status}</div>
+                  <div className="tlCardTitle">{m.title}</div>
+                  <div className="tlCardDesc">{m.desc}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend row */}
+      <div className="tlLegend">
+        {(["DONE", "ACTIVE", "PLANNED", "FUTURE"] as const).map(s => (
+          <div key={s} className="tlLegendItem">
+            <div className={`tlLegendDot ${s.toLowerCase()}`} />
+            <span>{s}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
+   ROOT PAGE
+   ============================================================ */
+export default function Home() {
+  const [page, setPage] = useState(0);
+  const [boot, setBoot] = useState(true);
+  const [utc, setUtc]   = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => setBoot(false), 3000);
@@ -400,7 +750,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const update = () => setUtc(new Date().toUTCString());
+    const update = () => setUtc(new Date().toUTCString().slice(0, 25));
     update();
     const i = setInterval(update, 1000);
     return () => clearInterval(i);
@@ -428,46 +778,36 @@ export default function Home() {
       <div className="grid" />
       <div className="glow" />
 
+      {/* HUD */}
       <header className="hud">
-        <div>STATUS: ONLINE</div>
-        <div>RAMZI ZIRIAT // EXPLORATION SYSTEM</div>
-        <div>{utc}</div>
-        <div>FLIGHT HOURS: {flightHours.toFixed(1)}h</div>
+        <div className="hudItem">STATUS: ONLINE</div>
+        <div className="hudItem hudCenter">RAMZI ZIRIAT // EXPLORATION SYSTEM</div>
+        <div className="hudItem hudRight">{utc}</div>
       </header>
 
+      {/* Flight hours — floating bottom-left */}
+      <FlightHoursWidget />
+
+      {/* Sidebar dots */}
       <aside className="sidebar">
         {["HOME","VISION","LAB","MAP","COLLAB"].map((s, i) => (
-          <div key={s} className={`dot ${page===i?"active":""}`} onClick={() => setPage(i)} />
+          <div key={s} className={`dot ${page===i?"active":""}`} onClick={() => setPage(i)} title={s} />
         ))}
       </aside>
 
+      {/* Scrollable viewport */}
       <div className="viewport" style={{ transform: `translateY(-${page*100}vh)` }}>
 
+        {/* PAGE 1 */}
         <section className="neuralSection">
           <div className="titleOverlay"><h1>RAMZI ZIRIAT</h1></div>
           <NeuralNetwork />
         </section>
 
-        <section className="section">
-          <h2>VISION TIMELINE</h2>
-          <div className="timeline">
-            <div className="line" />
-            {missions.map((m, i) => (
-              <div key={i} className="node"
-                style={{ left: `${(i/(missions.length-1))*100}%` }}
-                onMouseEnter={() => setHover(i)}
-                onMouseLeave={() => setHover(null)}
-              >
-                <div className="dotNode" />
-                <span className="year">{m.year}</span>
-                {hover === i && (
-                  <div className="tooltip"><h3>{m.title}</h3><p>{m.desc}</p></div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* PAGE 2 */}
+        <TimelinePage />
 
+        {/* PAGE 3 */}
         <section className="section">
           <h2>FLIGHT LAB</h2>
           <div className="labGrid">
@@ -478,11 +818,13 @@ export default function Home() {
           </div>
         </section>
 
+        {/* PAGE 4 */}
         <section className="section">
           <h2>EXPLORATION MAP</h2>
           <iframe className="map" src="https://www.openstreetmap.org/export/embed.html" />
         </section>
 
+        {/* PAGE 5 */}
         <section className="section">
           <h2>COLLABORATION</h2>
           <p style={{ maxWidth:"700px", textAlign:"center" }}>
